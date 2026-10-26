@@ -1,0 +1,37 @@
+FormKey: 000820:Mantella - Adult Expansion - OStim.esp
+EditorID: MAE_QuestLive
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MAE_Live
+    Properties:
+    - MutagenObjectType: ScriptObjectProperty
+      Name: Bystander
+      Object: 000821:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_DirtyTalk
+      Object: 000809:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_LiveSceneCooldown
+      Object: 000801:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_LiveSceneLines
+      Object: 000800:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_TalkBandChance
+      Object: 000807:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_TalkGap
+      Object: 000808:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_TestMode
+      Object: 000811:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: PlayerRef
+      Object: 000014:Skyrim.esm
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Mantella Adult Expansion - Live lines
+Flags:
+- StartGameEnabled
+NextAliasID: 0

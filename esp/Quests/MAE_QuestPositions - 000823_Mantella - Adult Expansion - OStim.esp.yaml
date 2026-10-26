@@ -1,0 +1,19 @@
+FormKey: 000823:Mantella - Adult Expansion - OStim.esp
+EditorID: MAE_QuestPositions
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MAE_Positions
+    Properties:
+    - MutagenObjectType: ScriptObjectProperty
+      Name: Flows
+      Object: 000822:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: PlayerRef
+      Object: 000014:Skyrim.esm
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Mantella Adult Expansion - Positions
+Flags:
+- StartGameEnabled
+NextAliasID: 0

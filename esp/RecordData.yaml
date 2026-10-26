@@ -1,0 +1,12 @@
+ModKey: Mantella - Adult Expansion - OStim.esp
+GameRelease: SkyrimSE
+ModHeader:
+  Flags:
+  - Small
+  Author: itsPigeon2000
+  Description: Mantella and OStim together - scene flows from your animation packs, positions, talking during scenes and bystander comments.
+  MasterReferences:
+  - Master: Skyrim.esm
+    FileSize: 0
+  - Master: Update.esm
+    FileSize: 0

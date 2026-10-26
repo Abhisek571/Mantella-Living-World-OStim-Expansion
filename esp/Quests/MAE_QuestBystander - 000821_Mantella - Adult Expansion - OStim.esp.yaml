@@ -1,0 +1,25 @@
+FormKey: 000821:Mantella - Adult Expansion - OStim.esp
+EditorID: MAE_QuestBystander
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MAE_Bystander
+    Properties:
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_BystanderArousalChance
+      Object: 000804:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_BystanderChance
+      Object: 000803:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_BystanderComments
+      Object: 000802:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: PlayerRef
+      Object: 000014:Skyrim.esm
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Mantella Adult Expansion - Bystanders
+Flags:
+- StartGameEnabled
+NextAliasID: 0

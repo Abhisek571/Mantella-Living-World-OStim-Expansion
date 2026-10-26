@@ -1,0 +1,31 @@
+FormKey: 000822:Mantella - Adult Expansion - OStim.esp
+EditorID: MAE_QuestFlows
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MAE_Flows
+    Properties:
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_FlowFinishExcitement
+      Object: 000806:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_FlowsEnabled
+      Object: 000805:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_NotifyScene
+      Object: 00080B:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_TestMode
+      Object: 000811:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: Positions
+      Object: 000823:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: PlayerRef
+      Object: 000014:Skyrim.esm
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Mantella Adult Expansion - Scene flows
+Flags:
+- StartGameEnabled
+NextAliasID: 0

@@ -1,0 +1,42 @@
+{
+    "identifier": "mantella_mae_change_position",
+    "name": "ChangePosition",
+    "description": "Use only during sex with the player, when the speaking NPC agrees to switch to a different position (because the player asked, or because she wants to). Only agree if it fits her mood and personality; she may say no instead.",
+    "note": "Needs OStim and Mantella - Adult Expansion - OStim (flows built). Plays a matching animation from the installed packs.",
+    "key": "ChangePosition",
+    "parameters": {
+        "position": {
+            "type": "string",
+            "enum": [
+                "standing face to face",
+                "standing from behind",
+                "carry",
+                "kneeling",
+                "sitting / lap",
+                "missionary",
+                "lying on back",
+                "spooning",
+                "sixtynine",
+                "prone",
+                "doggystyle",
+                "cowgirl",
+                "reversecowgirl",
+                "facesitting"
+            ],
+            "description": "The new position, exactly one of: standing face to face, standing from behind, carry, kneeling, sitting / lap, missionary, lying on back, spooning, sixtynine, prone, doggystyle, cowgirl, reversecowgirl, facesitting."
+        }
+    },
+    "required": [
+        "position"
+    ],
+    "prompt": "If you agree to switch to a different sex position, begin your response with '{key}:'",
+    "allowed_games": [
+        "skyrim"
+    ],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": true,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}

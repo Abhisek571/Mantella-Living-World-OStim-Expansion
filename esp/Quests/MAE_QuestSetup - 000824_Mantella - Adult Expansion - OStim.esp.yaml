@@ -1,0 +1,37 @@
+FormKey: 000824:Mantella - Adult Expansion - OStim.esp
+EditorID: MAE_QuestSetup
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MAE_Setup
+    Properties:
+    - MutagenObjectType: ScriptObjectProperty
+      Name: Flows
+      Object: 000822:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_FlowsEnabled
+      Object: 000805:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_Hotkey
+      Object: 00080A:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_SetupDone
+      Object: 00080F:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_SetupReminder
+      Object: 00080C:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_TemperDefault
+      Object: 00080D:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_TemperSource
+      Object: 00080E:Mantella - Adult Expansion - OStim.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: PlayerRef
+      Object: 000014:Skyrim.esm
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Mantella Adult Expansion - Setup
+Flags:
+- StartGameEnabled
+NextAliasID: 0

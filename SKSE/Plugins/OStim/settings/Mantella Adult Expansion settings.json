@@ -1,0 +1,180 @@
+{
+ "name": "Adult Expansion",
+ "settings": [
+  {
+   "name": "Scene flows",
+   "tooltip": "Build scenes from your animation packs (needs Build Flows.cmd).",
+   "type": "toggle",
+   "defaultValue": true,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x805"
+   }
+  },
+  {
+   "name": "Finish at excitement",
+   "tooltip": "A pack's finish scene starts when the man's excitement reaches this.",
+   "type": "slider",
+   "defaultValue": 90,
+   "valueStep": 5,
+   "minValue": 50,
+   "maxValue": 100,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x806"
+   }
+  },
+  {
+   "name": "Scene messages",
+   "tooltip": "Corner messages when a new animation set starts or a position is requested.",
+   "type": "toggle",
+   "defaultValue": false,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x80B"
+   }
+  },
+  {
+   "name": "Live scene lines",
+   "tooltip": "Tell Mantella about position changes, pace and climaxes during scenes.",
+   "type": "toggle",
+   "defaultValue": true,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x800"
+   }
+  },
+  {
+   "name": "Talk chance per excitement band",
+   "tooltip": "Chance she speaks when she warms up, gets into it, or gets close; also the climax coin flip.",
+   "type": "slider",
+   "defaultValue": 0.5,
+   "valueStep": 0.05,
+   "minValue": 0,
+   "maxValue": 1,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x807"
+   }
+  },
+  {
+   "name": "Seconds between spoken reactions",
+   "tooltip": "At most one spoken scene reaction per this many seconds.",
+   "type": "slider",
+   "defaultValue": 40,
+   "valueStep": 5,
+   "minValue": 10,
+   "maxValue": 180,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x808"
+   }
+  },
+  {
+   "name": "Dirty talk for forward NPCs",
+   "tooltip": "Forward NPCs may talk dirty during scenes.",
+   "type": "toggle",
+   "defaultValue": true,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x809"
+   }
+  },
+  {
+   "name": "Bystander comments",
+   "tooltip": "Conversation members watching the scene comment now and then.",
+   "type": "toggle",
+   "defaultValue": true,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x802"
+   }
+  },
+  {
+   "name": "Bystander chance when calm",
+   "tooltip": "Chance per climax at arousal 0.",
+   "type": "slider",
+   "defaultValue": 0.25,
+   "valueStep": 0.05,
+   "minValue": 0,
+   "maxValue": 1,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x803"
+   }
+  },
+  {
+   "name": "Bystander extra chance at peak",
+   "tooltip": "Added to the chance at arousal 100.",
+   "type": "slider",
+   "defaultValue": 0.25,
+   "valueStep": 0.05,
+   "minValue": 0,
+   "maxValue": 1,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x804"
+   }
+  },
+  {
+   "name": "Never force-start a scene",
+   "tooltip": "NPCs at peak arousal beg but never start a scene without the player's yes.",
+   "type": "toggle",
+   "defaultValue": true,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x810"
+   }
+  },
+  {
+   "name": "Default temperament",
+   "tooltip": "For NPCs without their own setting. Set per NPC with the hotkey.",
+   "type": "dropdown",
+   "defaultIndex": 0,
+   "options": [
+    "Auto",
+    "Reserved",
+    "Bold",
+    "Forward"
+   ],
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x80D"
+   }
+  },
+  {
+   "name": "Auto judges lust from",
+   "tooltip": "Mantella's appetite rating (OSL values until rated), or OSL Aroused values only.",
+   "type": "dropdown",
+   "defaultIndex": 0,
+   "options": [
+    "Appetite rating",
+    "OSL values only"
+   ],
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x80E"
+   }
+  },
+  {
+   "name": "Setup reminder",
+   "tooltip": "Remind at game launch while setup has not been run.",
+   "type": "toggle",
+   "defaultValue": true,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x80C"
+   }
+  },
+  {
+   "name": "Hotkey",
+   "tooltip": "Aim at an NPC: set her temperament. Aim at nobody: run setup.",
+   "type": "keymap",
+   "defaultKey": 199,
+   "variable": {
+    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "formid": "0x80A"
+   }
+  }
+ ]
+}
