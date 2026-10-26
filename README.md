@@ -9,6 +9,9 @@ OStim scenes for Mantella: live scene flows from your animation packs, scene tal
 | tools | Flow generator, record generator |
 | test | In-game test harness, log validator, offline simulator |
 
-Requires: Mantella, OStim Standalone. Recommended: OSL Aroused with the Arousal module.
-
-Author: itsPigeon2000
+| Requires | Link |
+|---|---|
+| Integration Hub | [Mantella-Living-World-Hub](https://github.com/Abhisek571/Mantella-Living-World-Hub) |
+| Mantella | [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/98631) |
+| OStim Standalone | [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/98163) |
+| Arousal (recommended) | [Mantella-Living-World-Arousal](https://github.com/Abhisek571/Mantella-Living-World-Arousal) |
