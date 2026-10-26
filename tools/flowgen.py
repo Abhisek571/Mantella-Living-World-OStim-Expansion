@@ -1,4 +1,4 @@
-"""Builds the scene-flow catalogue for Mantella - Adult Expansion - OStim from the OStim packs enabled in an MO2 profile.
+"""Builds the scene-flow catalogue for Mantella Living World - OStim Expansion from the OStim packs enabled in an MO2 profile.
 
 Each pack is split into sets (one position with numbered stages, ordered by the pack's own navigation), and every
 set is written as an OStim sequence. The game then chains sets live, one roll at a time (MAE_Flows), so this tool

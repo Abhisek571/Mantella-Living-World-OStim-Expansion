@@ -1,10 +1,10 @@
-ModKey: Mantella - Adult Expansion - OStim.esp
+ModKey: Mantella Living World - OStim Expansion.esp
 GameRelease: SkyrimSE
 ModHeader:
   Flags:
   - Small
   Author: itsPigeon2000
-  Description: Mantella and OStim together - scene flows from your animation packs, positions, talking during scenes and bystander comments.
+  Description: Mantella Living World - OStim Expansion. Scene flows, scene talk, bystanders and positions.
   MasterReferences:
   - Master: Skyrim.esm
     FileSize: 0

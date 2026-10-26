@@ -1,0 +1,22 @@
+FormKey: 000824:Mantella Living World - OStim Expansion.esp
+EditorID: MAE_QuestSetup
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MAE_Setup
+    Properties:
+    - MutagenObjectType: ScriptObjectProperty
+      Name: Flows
+      Object: 000822:Mantella Living World - OStim Expansion.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_FlowsEnabled
+      Object: 000805:Mantella Living World - OStim Expansion.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: PlayerRef
+      Object: 000014:Skyrim.esm
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Mantella Living World - OStim flow notices
+Flags:
+- StartGameEnabled
+NextAliasID: 0

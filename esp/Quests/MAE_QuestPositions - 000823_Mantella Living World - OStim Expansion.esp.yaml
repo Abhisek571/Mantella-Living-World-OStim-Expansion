@@ -1,4 +1,4 @@
-FormKey: 000823:Mantella - Adult Expansion - OStim.esp
+FormKey: 000823:Mantella Living World - OStim Expansion.esp
 EditorID: MAE_QuestPositions
 VirtualMachineAdapter:
   Scripts:
@@ -6,14 +6,14 @@ VirtualMachineAdapter:
     Properties:
     - MutagenObjectType: ScriptObjectProperty
       Name: Flows
-      Object: 000822:Mantella - Adult Expansion - OStim.esp
+      Object: 000822:Mantella Living World - OStim Expansion.esp
     - MutagenObjectType: ScriptObjectProperty
       Name: PlayerRef
       Object: 000014:Skyrim.esm
   FileName: ''
 Name:
   TargetLanguage: English
-  Value: Mantella Adult Expansion - Positions
+  Value: Mantella Living World - OStim positions
 Flags:
 - StartGameEnabled
 NextAliasID: 0

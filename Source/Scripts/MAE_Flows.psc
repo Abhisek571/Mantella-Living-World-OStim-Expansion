@@ -28,7 +28,7 @@ float Property W_UNNATURAL = 0.5 AutoReadOnly
 float Property FAV_MULT = 3.0 AutoReadOnly
 float Property RECENT_MULT = 0.5 AutoReadOnly
 float Property RANK_JUMP_MULT = 0.5 AutoReadOnly
-; OSL arousal still at or above this after her climax = not satisfied (when the OSL Aroused Bridge is missing).
+; OSL arousal still at or above this after her climax = not satisfied (when the Arousal module is missing).
 float Property SATISFIED_AROUSAL = 30.0 AutoReadOnly
 float Property SATISFIED_CHECK_DELAY = 4.0 AutoReadOnly
 string Property KEY_LAST_POSES = "MAE_LastScenePoses" AutoReadOnly
@@ -563,9 +563,9 @@ Actor Function FinishActor()
 	Return partner
 EndFunction
 
-; The OSL Aroused Bridge's own satisfied / overwhelmed flags when it is installed; otherwise her arousal.
+; The Arousal module's own satisfied / overwhelmed flags when it is installed; otherwise her arousal.
 bool Function NotSatisfied(Actor akPartner)
-	If Game.GetModByName("Mantella - OSL Aroused Bridge.esp") != 255
+	If Game.GetModByName("Mantella Living World - Arousal.esp") != 255
 		Return StorageUtil.GetIntValue(akPartner, "MantellaOSLA_Satisfied", 0) != 1 && StorageUtil.GetIntValue(akPartner, "MantellaOSLA_Overwhelmed", 0) != 1
 	EndIf
 	Return OSLArousedNative.GetArousalNoSideEffects(akPartner) >= SATISFIED_AROUSAL

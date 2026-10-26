@@ -1,14 +1,14 @@
 Scriptname MAE_Test Hidden
-{Test harness for Mantella - Adult Expansion - OStim, called over DevBench. Test builds only, never released.
+{Test harness for Mantella Living World - OStim Expansion, called over DevBench. Test builds only, never released.
 Fakes what Mantella would send (conversation members, actions) and drives OStim, and marks each step in the
 test log so test\validate.py can check the scripts' decisions against the rules.}
 
 MAE_Flows Function Flows() Global
-	Return Game.GetFormFromFile(0x000822, "Mantella - Adult Expansion - OStim.esp") as MAE_Flows
+	Return Game.GetFormFromFile(0x000822, "Mantella Living World - OStim Expansion.esp") as MAE_Flows
 EndFunction
 
 GlobalVariable Function Setting(int aiFormID) Global
-	Return Game.GetFormFromFile(aiFormID, "Mantella - Adult Expansion - OStim.esp") as GlobalVariable
+	Return Game.GetFormFromFile(aiFormID, "Mantella Living World - OStim Expansion.esp") as GlobalVariable
 EndFunction
 
 Function Mark(string asLine) Global
@@ -173,15 +173,13 @@ string Function Status() Global
 	Return Flows().TestState()
 EndFunction
 
-; Mantella's outfit tracking switches (player equip, unequip, added, removed; NPC the same) as 1/0.
+; Mantella's outfit tracking switches and the hub's quiet reasons (MLW_Hub.TestState).
 string Function Tracking() Global
-	MantellaRepository r = Game.GetFormFromFile(0x000D62, "Mantella.esp") as MantellaRepository
-	If !r
-		Return "no repository"
+	MLW_Hub hub = Game.GetFormFromFile(0x000820, "Mantella Living World - Integration Hub.esp") as MLW_Hub
+	If !hub
+		Return "no hub"
 	EndIf
-	Return "player " + (r.playerTrackingOnObjectEquipped as int) + (r.playerTrackingOnObjectUnequipped as int) + (r.playerTrackingOnItemAdded as int) + (r.playerTrackingOnItemRemoved as int) \
-		+ " npc " + (r.targetTrackingOnObjectEquipped as int) + (r.targetTrackingOnObjectUnequipped as int) + (r.targetTrackingItemAdded as int) + (r.targetTrackingItemRemoved as int) \
-		+ " muted=" + StorageUtil.GetIntValue(None, "MAE_TrackingMuted", 0)
+	Return hub.TestState()
 EndFunction
 
 ; Real Mantella: asks for an event-only turn now (as MAE_Live does), so queued in-game events are sent.
@@ -196,5 +194,14 @@ Function EventTurn() Global
 			ModEvent.PushString(done, "mantella_event_turn")
 			ModEvent.Send(done)
 		EndIf
+	EndIf
+EndFunction
+
+; Real Mantella: sends a line as if the player typed it in the running conversation.
+Function Say(string asText) Global
+	MantellaConversation conversation = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
+	Mark("say|running=" + (conversation && conversation.IsRunning()) + "|" + asText)
+	If conversation && conversation.IsRunning()
+		conversation.sendRequestForPlayerInput(asText, true)
 	EndIf
 EndFunction

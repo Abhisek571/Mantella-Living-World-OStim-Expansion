@@ -1,5 +1,5 @@
 {
- "name": "Adult Expansion",
+ "name": "Living World",
  "settings": [
   {
    "name": "Scene flows",
@@ -7,7 +7,7 @@
    "type": "toggle",
    "defaultValue": true,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x805"
    }
   },
@@ -20,7 +20,7 @@
    "minValue": 50,
    "maxValue": 100,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x806"
    }
   },
@@ -30,7 +30,7 @@
    "type": "toggle",
    "defaultValue": false,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x80B"
    }
   },
@@ -40,7 +40,7 @@
    "type": "toggle",
    "defaultValue": true,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x800"
    }
   },
@@ -53,7 +53,7 @@
    "minValue": 0,
    "maxValue": 1,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x807"
    }
   },
@@ -66,7 +66,7 @@
    "minValue": 10,
    "maxValue": 180,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x808"
    }
   },
@@ -76,7 +76,7 @@
    "type": "toggle",
    "defaultValue": true,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x809"
    }
   },
@@ -86,7 +86,7 @@
    "type": "toggle",
    "defaultValue": true,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x802"
    }
   },
@@ -99,7 +99,7 @@
    "minValue": 0,
    "maxValue": 1,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x803"
    }
   },
@@ -112,68 +112,8 @@
    "minValue": 0,
    "maxValue": 1,
    "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
+    "mod": "Mantella Living World - OStim Expansion.esp",
     "formid": "0x804"
-   }
-  },
-  {
-   "name": "Never force-start a scene",
-   "tooltip": "NPCs at peak arousal beg but never start a scene without the player's yes.",
-   "type": "toggle",
-   "defaultValue": true,
-   "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
-    "formid": "0x810"
-   }
-  },
-  {
-   "name": "Default temperament",
-   "tooltip": "For NPCs without their own setting. Set per NPC with the hotkey.",
-   "type": "dropdown",
-   "defaultIndex": 0,
-   "options": [
-    "Auto",
-    "Reserved",
-    "Bold",
-    "Forward"
-   ],
-   "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
-    "formid": "0x80D"
-   }
-  },
-  {
-   "name": "Auto judges lust from",
-   "tooltip": "Mantella's appetite rating (OSL values until rated), or OSL Aroused values only.",
-   "type": "dropdown",
-   "defaultIndex": 0,
-   "options": [
-    "Appetite rating",
-    "OSL values only"
-   ],
-   "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
-    "formid": "0x80E"
-   }
-  },
-  {
-   "name": "Setup reminder",
-   "tooltip": "Remind at game launch while setup has not been run.",
-   "type": "toggle",
-   "defaultValue": true,
-   "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
-    "formid": "0x80C"
-   }
-  },
-  {
-   "name": "Hotkey",
-   "tooltip": "Aim at an NPC: set her temperament. Aim at nobody: run setup.",
-   "type": "keymap",
-   "defaultKey": 199,
-   "variable": {
-    "mod": "Mantella - Adult Expansion - OStim.esp",
-    "formid": "0x80A"
    }
   }
  ]

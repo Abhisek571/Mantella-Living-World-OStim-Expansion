@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Crash isolation: repeats the stop -> quick restart cycle that crashed OStim, first with Adult Expansion
+# Crash isolation: repeats the stop -> quick restart cycle that crashed OStim, first with the OStim Expansion
 # switched off in game (flows, live lines, bystanders), then switched on.
 # usage: bash stress.sh <partner form> <cycles per phase>
 set -u

@@ -53,12 +53,10 @@ float Property BAND_CLOSE = 75.0 AutoReadOnly
 float Property QUIET_START = 30.0 AutoReadOnly
 float Property EXCITEMENT_POLL = 3.0 AutoReadOnly
 float Property SPEED_LINE_GAP = 8.0 AutoReadOnly
-; OStim undresses and redresses everyone, which Mantella would report item by item. Its outfit tracking is muted
-; from the player's scene start until this many seconds after the scene ends (the redress).
-float Property UNMUTE_DELAY = 10.0 AutoReadOnly
-string Property KEY_MUTED = "MAE_TrackingMuted" AutoReadOnly
-string Property KEY_SAVED = "MAE_SavedTracking" AutoReadOnly
-bool unmutePending = false
+; OStim undresses and redresses everyone, which Mantella would report item by item: the Integration Hub keeps
+; Mantella quiet about outfits from the player's scene start until its quiet time after the scene ends.
+string Property HUB_PLUGIN = "Mantella Living World - Integration Hub.esp" AutoReadOnly
+string Property QUIET_REASON = "ostim" AutoReadOnly
 
 Event OnInit()
 	Register()
@@ -72,73 +70,53 @@ Function Register()
 	RegisterForModEvent("SKSE_HTTP_OnHttpReplyReceived", "OnMantellaReply")
 	RegisterForModEvent("MantellaConversation_Ended", "OnConversationEnded")
 	RegisterForModEvent("ostim_prestart", "OnPreStart")
+	RegisterForModEvent("MLW_ReportRequest", "OnReportRequest")
 	RegisterForMenu("Loading Menu")
 EndFunction
 
-; The player's scene is about to start (before the undress): mute Mantella's outfit tracking.
+; The player's scene is about to start (before the undress): quiet Mantella about outfits.
 Event OnPreStart(string asEventName, string asArg, float afNum, Form akSender)
-	MuteOutfitTracking()
+	QuietOutfits()
 EndEvent
 
-; A save quit mid-scene comes back muted: restore the tracking once the player is not in a scene.
+; A save quit mid-scene comes back quiet: end it once the player is not in a scene.
 Event OnMenuClose(string asMenuName)
-	If StorageUtil.GetIntValue(None, KEY_MUTED, 0) == 1 && !OActor.IsInOStim(PlayerRef)
-		RestoreOutfitTracking()
+	MLW_Hub hub = Hub()
+	If hub && !OActor.IsInOStim(PlayerRef)
+		hub.Unquiet(QUIET_REASON)
 	EndIf
 EndEvent
 
-; Saves and switches off Mantella's equip/unequip and item added/removed tracking, for the player and NPCs.
-Function MuteOutfitTracking()
-	unmutePending = false
-	If StorageUtil.GetIntValue(None, KEY_MUTED, 0) == 1
+; The hub's troubleshooting report asks every module for its state.
+Event OnReportRequest()
+	MLW_Hub hub = Hub()
+	If !hub
 		Return
 	EndIf
-	MantellaRepository repo = Game.GetFormFromFile(0x000D62, "Mantella.esp") as MantellaRepository
-	If !repo
-		Return
+	int thread = OActor.GetThreadID(PlayerRef)
+	string sceneId = "none"
+	If thread >= 0
+		sceneId = OThread.GetScene(thread)
 	EndIf
-	StorageUtil.IntListClear(None, KEY_SAVED)
-	StorageUtil.IntListAdd(None, KEY_SAVED, repo.playerTrackingOnObjectEquipped as int)
-	StorageUtil.IntListAdd(None, KEY_SAVED, repo.playerTrackingOnObjectUnequipped as int)
-	StorageUtil.IntListAdd(None, KEY_SAVED, repo.playerTrackingOnItemAdded as int)
-	StorageUtil.IntListAdd(None, KEY_SAVED, repo.playerTrackingOnItemRemoved as int)
-	StorageUtil.IntListAdd(None, KEY_SAVED, repo.targetTrackingOnObjectEquipped as int)
-	StorageUtil.IntListAdd(None, KEY_SAVED, repo.targetTrackingOnObjectUnequipped as int)
-	StorageUtil.IntListAdd(None, KEY_SAVED, repo.targetTrackingItemAdded as int)
-	StorageUtil.IntListAdd(None, KEY_SAVED, repo.targetTrackingItemRemoved as int)
-	StorageUtil.SetIntValue(None, KEY_MUTED, 1)
-	repo.playerTrackingOnObjectEquipped = false
-	repo.playerTrackingOnObjectUnequipped = false
-	repo.playerTrackingOnItemAdded = false
-	repo.playerTrackingOnItemRemoved = false
-	repo.targetTrackingOnObjectEquipped = false
-	repo.targetTrackingOnObjectUnequipped = false
-	repo.targetTrackingItemAdded = false
-	repo.targetTrackingItemRemoved = false
-	TestLog("MUTE|outfit tracking off")
+	MAE_Flows flows = Game.GetFormFromFile(0x000822, "Mantella Living World - OStim Expansion.esp") as MAE_Flows
+	hub.ReportAdd("ostim", "player thread=" + thread + " scene=" + sceneId + " live lines=" + MAE_LiveSceneLines.GetValueInt())
+	If flows
+		hub.ReportAdd("ostim", "flows built=" + flows.Built() + " sets=" + JsonUtil.GetIntValue("MantellaAdultExpansion/flows.json", "setCount") + " packs=" + JsonUtil.GetIntValue("MantellaAdultExpansion/flows.json", "packCount"))
+	EndIf
+EndEvent
+
+MLW_Hub Function Hub()
+	Return Game.GetFormFromFile(0x000820, HUB_PLUGIN) as MLW_Hub
 EndFunction
 
-; Puts back what MuteOutfitTracking saved.
-Function RestoreOutfitTracking()
-	unmutePending = false
-	If StorageUtil.GetIntValue(None, KEY_MUTED, 0) != 1 || StorageUtil.IntListCount(None, KEY_SAVED) < 8
-		StorageUtil.UnsetIntValue(None, KEY_MUTED)
-		Return
+; Asks the hub for quiet while the player's scene undresses and redresses everyone (hub setting "During scenes").
+Function QuietOutfits()
+	MLW_Hub hub = Hub()
+	GlobalVariable duringScenes = Game.GetFormFromFile(0x000808, HUB_PLUGIN) as GlobalVariable
+	If hub && (!duringScenes || duringScenes.GetValueInt() == 1)
+		hub.Quiet(QUIET_REASON)
+		TestLog("MUTE|outfit tracking off")
 	EndIf
-	MantellaRepository repo = Game.GetFormFromFile(0x000D62, "Mantella.esp") as MantellaRepository
-	If !repo
-		Return
-	EndIf
-	repo.playerTrackingOnObjectEquipped = StorageUtil.IntListGet(None, KEY_SAVED, 0) == 1
-	repo.playerTrackingOnObjectUnequipped = StorageUtil.IntListGet(None, KEY_SAVED, 1) == 1
-	repo.playerTrackingOnItemAdded = StorageUtil.IntListGet(None, KEY_SAVED, 2) == 1
-	repo.playerTrackingOnItemRemoved = StorageUtil.IntListGet(None, KEY_SAVED, 3) == 1
-	repo.targetTrackingOnObjectEquipped = StorageUtil.IntListGet(None, KEY_SAVED, 4) == 1
-	repo.targetTrackingOnObjectUnequipped = StorageUtil.IntListGet(None, KEY_SAVED, 5) == 1
-	repo.targetTrackingItemAdded = StorageUtil.IntListGet(None, KEY_SAVED, 6) == 1
-	repo.targetTrackingItemRemoved = StorageUtil.IntListGet(None, KEY_SAVED, 7) == 1
-	StorageUtil.UnsetIntValue(None, KEY_MUTED)
-	TestLog("MUTE|outfit tracking restored")
 EndFunction
 
 Function TestLog(string asLine)
@@ -161,9 +139,18 @@ Event OnThreadEnd(string asEventName, string asArg, float afThreadID, Form akSen
 		sceneThread = -1
 		SendSummary()
 	EndIf
-	If StorageUtil.GetIntValue(None, KEY_MUTED, 0) == 1 && !OActor.IsInOStim(PlayerRef)
-		unmutePending = true
-		RegisterForSingleUpdate(UNMUTE_DELAY)
+	MLW_Hub hub = Hub()
+	If hub
+		hub.Log("ostim", "scene end, thread " + (afThreadID as int))
+	EndIf
+	If hub && !OActor.IsInOStim(PlayerRef)
+		; The redress happens after the scene ends: the hub's quiet time covers it.
+		GlobalVariable seconds = Game.GetFormFromFile(0x000801, HUB_PLUGIN) as GlobalVariable
+		float delay = 10.0
+		If seconds
+			delay = seconds.GetValue()
+		EndIf
+		hub.Unquiet(QUIET_REASON, delay)
 	EndIf
 EndEvent
 
@@ -235,7 +222,7 @@ EndEvent
 string Function BystanderLine(int aiThreadID, string asPartners)
 	If !Bystander
 		; Saves from before this property existed.
-		Bystander = Game.GetFormFromFile(0x000821, "Mantella - Adult Expansion - OStim.esp") as MAE_Bystander
+		Bystander = Game.GetFormFromFile(0x000821, "Mantella Living World - OStim Expansion.esp") as MAE_Bystander
 		If !Bystander
 			Return ""
 		EndIf
@@ -258,7 +245,11 @@ EndFunction
 Function BeginScene(int aiThreadID, string asPartners)
 	; Saves made before the pace event existed never ran OnInit again.
 	Register()
-	MuteOutfitTracking()
+	QuietOutfits()
+	MLW_Hub hub = Hub()
+	If hub
+		hub.Log("ostim", "scene start, thread " + aiThreadID + ", with " + asPartners)
+	EndIf
 	sceneThread = aiThreadID
 	sceneStart = Utility.GetCurrentRealTime()
 	scenePartners = asPartners
@@ -360,9 +351,6 @@ EndFunction
 
 ; Polls the partners' OStim excitement while the player's scene runs.
 Event OnUpdate()
-	If unmutePending && !OActor.IsInOStim(PlayerRef)
-		RestoreOutfitTracking()
-	EndIf
 	If sceneThread < 0 || !OThread.IsRunning(sceneThread)
 		Return
 	EndIf
@@ -406,10 +394,10 @@ string Function BandLine(Actor akPartner, int aiBand)
 	Return name + howFar + "; " + name + " reacts out loud in a sentence or two, " + StyleHint(akPartner) + "."
 EndFunction
 
-; How she sounds, from the OSL Aroused Bridge's temperament (reserved / bold / forward).
+; How she sounds, from the Arousal module's temperament (reserved / bold / forward).
 string Function StyleHint(Actor akPartner)
 	int tier = 0
-	Quest osla = Game.GetFormFromFile(0x000800, "Mantella - OSL Aroused Bridge.esp") as Quest
+	Quest osla = Game.GetFormFromFile(0x000800, "Mantella Living World - Arousal.esp") as Quest
 	MantellaOSLA_Main bridge = osla as MantellaOSLA_Main
 	If bridge
 		tier = bridge.GetTier(akPartner)

@@ -2,7 +2,7 @@
     "identifier": "mantella_mae_rate_positions",
     "name": "RateFavoritePositions",
     "description": "Use once, only when told that the speaking NPC's favourite sex positions have not been rated yet. Pick up to three from their personality, background and nature. Keep talking normally; do not mention the rating.",
-    "note": "Needs OStim and Mantella - Adult Expansion - OStim (flows built). Stored on the NPC and never asked again.",
+    "note": "Needs OStim and Mantella Living World - OStim Expansion (flows built). Stored on the NPC and never asked again.",
     "key": "RatePositions",
     "parameters": {
         "positions": {

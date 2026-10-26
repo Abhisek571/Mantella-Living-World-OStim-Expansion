@@ -1,23 +1,21 @@
 """One-off scaffolding: writes the plugin's Spriggit YAML (globals + quests), the OStim MCM settings page and the
-Mantella action files for Mantella - Adult Expansion - OStim. Run from the project root."""
+Mantella action files for Mantella Living World - OStim Expansion. Run from the project root."""
 import json, os
 
-E = 'Mantella - Adult Expansion - OStim.esp'
+E = 'Mantella Living World - OStim Expansion.esp'
 G = [('000800', 'MAE_LiveSceneLines', 'GlobalShort', 1), ('000801', 'MAE_LiveSceneCooldown', 'GlobalFloat', 45),
      ('000802', 'MAE_BystanderComments', 'GlobalShort', 1), ('000803', 'MAE_BystanderChance', 'GlobalFloat', 0.25),
      ('000804', 'MAE_BystanderArousalChance', 'GlobalFloat', 0.25), ('000805', 'MAE_FlowsEnabled', 'GlobalShort', 1),
      ('000806', 'MAE_FlowFinishExcitement', 'GlobalFloat', 90), ('000807', 'MAE_TalkBandChance', 'GlobalFloat', 0.5),
      ('000808', 'MAE_TalkGap', 'GlobalFloat', 40), ('000809', 'MAE_DirtyTalk', 'GlobalShort', 1),
-     ('00080A', 'MAE_Hotkey', 'GlobalShort', 199), ('00080B', 'MAE_NotifyScene', 'GlobalShort', 0),
-     ('00080C', 'MAE_SetupReminder', 'GlobalShort', 1), ('00080D', 'MAE_TemperDefault', 'GlobalShort', 0),
-     ('00080E', 'MAE_TemperSource', 'GlobalShort', 0), ('00080F', 'MAE_SetupDone', 'GlobalShort', 0),
-     ('000810', 'MAE_NeverForceStart', 'GlobalShort', 1), ('000811', 'MAE_TestMode', 'GlobalShort', 0)]
+     ('00080B', 'MAE_NotifyScene', 'GlobalShort', 0), ('000811', 'MAE_TestMode', 'GlobalShort', 0)]
+# Temperament, hotkey and setup live in the Integration Hub (MLW_*); 0x80A, 0x80C-0x810 stay unused.
 gid = {n: f for f, n, _, _ in G}
-Q = {'000820': ('MAE_QuestLive', 'MAE_Live', 'Mantella Adult Expansion - Live lines'),
-     '000821': ('MAE_QuestBystander', 'MAE_Bystander', 'Mantella Adult Expansion - Bystanders'),
-     '000822': ('MAE_QuestFlows', 'MAE_Flows', 'Mantella Adult Expansion - Scene flows'),
-     '000823': ('MAE_QuestPositions', 'MAE_Positions', 'Mantella Adult Expansion - Positions'),
-     '000824': ('MAE_QuestSetup', 'MAE_Setup', 'Mantella Adult Expansion - Setup')}
+Q = {'000820': ('MAE_QuestLive', 'MAE_Live', 'Mantella Living World - OStim live lines'),
+     '000821': ('MAE_QuestBystander', 'MAE_Bystander', 'Mantella Living World - OStim bystanders'),
+     '000822': ('MAE_QuestFlows', 'MAE_Flows', 'Mantella Living World - OStim scene flows'),
+     '000823': ('MAE_QuestPositions', 'MAE_Positions', 'Mantella Living World - OStim positions'),
+     '000824': ('MAE_QuestSetup', 'MAE_Setup', 'Mantella Living World - OStim flow notices')}
 qid = {v[1]: k for k, v in Q.items()}
 PROPS = {
     'MAE_Live': [('Bystander', qid['MAE_Bystander'])] + [(g, gid[g]) for g in
@@ -25,8 +23,7 @@ PROPS = {
     'MAE_Bystander': [(g, gid[g]) for g in ['MAE_BystanderArousalChance', 'MAE_BystanderChance', 'MAE_BystanderComments']],
     'MAE_Flows': [(g, gid[g]) for g in ['MAE_FlowFinishExcitement', 'MAE_FlowsEnabled', 'MAE_NotifyScene', 'MAE_TestMode']] + [('Positions', qid['MAE_Positions'])],
     'MAE_Positions': [('Flows', qid['MAE_Flows'])],
-    'MAE_Setup': [('Flows', qid['MAE_Flows'])] + [(g, gid[g]) for g in
-                  ['MAE_FlowsEnabled', 'MAE_Hotkey', 'MAE_SetupDone', 'MAE_SetupReminder', 'MAE_TemperDefault', 'MAE_TemperSource']],
+    'MAE_Setup': [('Flows', qid['MAE_Flows']), ('MAE_FlowsEnabled', gid['MAE_FlowsEnabled'])],
 }
 
 
@@ -44,7 +41,7 @@ for fid, (eid, script, name) in Q.items():
           f"FormKey: {fid}:{E}\nEditorID: {eid}\nVirtualMachineAdapter:\n  Scripts:\n  - Name: {script}\n    Properties:\n{body}  FileName: ''\n"
           f"Name:\n  TargetLanguage: English\n  Value: {name}\nFlags:\n- StartGameEnabled\nNextAliasID: 0\n")
 write('esp/RecordData.yaml', f'ModKey: {E}\nGameRelease: SkyrimSE\nModHeader:\n  Flags:\n  - Small\n  Author: itsPigeon2000\n'
-      '  Description: Mantella and OStim together - scene flows from your animation packs, positions, talking during scenes and bystander comments.\n'
+      '  Description: Mantella Living World - OStim Expansion. Scene flows, scene talk, bystanders and positions.\n'
       '  MasterReferences:\n  - Master: Skyrim.esm\n    FileSize: 0\n  - Master: Update.esm\n    FileSize: 0\n')
 write('esp/spriggit-meta.json', json.dumps({'PackageName': 'Spriggit.Yaml.Skyrim', 'Version': '0.40.0', 'Release': 'SkyrimSE', 'ModKey': E}, indent=2))
 
@@ -64,18 +61,12 @@ S = [
     {'name': 'Bystander comments', 'tooltip': 'Conversation members watching the scene comment now and then.', 'type': 'toggle', 'defaultValue': True, 'variable': g('MAE_BystanderComments')},
     {'name': 'Bystander chance when calm', 'tooltip': 'Chance per climax at arousal 0.', 'type': 'slider', 'defaultValue': 0.25, 'valueStep': 0.05, 'minValue': 0, 'maxValue': 1, 'variable': g('MAE_BystanderChance')},
     {'name': 'Bystander extra chance at peak', 'tooltip': 'Added to the chance at arousal 100.', 'type': 'slider', 'defaultValue': 0.25, 'valueStep': 0.05, 'minValue': 0, 'maxValue': 1, 'variable': g('MAE_BystanderArousalChance')},
-    {'name': 'Never force-start a scene', 'tooltip': "NPCs at peak arousal beg but never start a scene without the player's yes.", 'type': 'toggle', 'defaultValue': True, 'variable': g('MAE_NeverForceStart')},
-    {'name': 'Default temperament', 'tooltip': 'For NPCs without their own setting. Set per NPC with the hotkey.', 'type': 'dropdown', 'defaultIndex': 0, 'options': ['Auto', 'Reserved', 'Bold', 'Forward'], 'variable': g('MAE_TemperDefault')},
-    {'name': 'Auto judges lust from', 'tooltip': "Mantella's appetite rating (OSL values until rated), or OSL Aroused values only.", 'type': 'dropdown', 'defaultIndex': 0, 'options': ['Appetite rating', 'OSL values only'], 'variable': g('MAE_TemperSource')},
-    {'name': 'Setup reminder', 'tooltip': 'Remind at game launch while setup has not been run.', 'type': 'toggle', 'defaultValue': True, 'variable': g('MAE_SetupReminder')},
-    {'name': 'Hotkey', 'tooltip': 'Aim at an NPC: set her temperament. Aim at nobody: run setup.', 'type': 'keymap', 'defaultKey': 199, 'variable': g('MAE_Hotkey')},
 ]
-write('SKSE/Plugins/OStim/settings/Mantella Adult Expansion settings.json', json.dumps({'name': 'Adult Expansion', 'settings': S}, indent=1))
+write('SKSE/Plugins/OStim/settings/Mantella Living World settings.json', json.dumps({'name': 'Living World', 'settings': S}, indent=1))
 
-SRC = 'D:/coding/Mantella-Relationship-Bridge/SKSE/Plugins/MantellaSoftware/data/actions/'
-for old, new in [('mantella_mrb_rate_positions.json', 'mantella_mae_rate_positions.json'), ('mantella_mrb_change_position.json', 'mantella_mae_change_position.json')]:
-    d = json.load(open(SRC + old, encoding='utf-8'))
-    d['identifier'] = d['identifier'].replace('mrb', 'mae')
-    d['note'] = d['note'].replace('Mantella - Relationship Bridge', 'Mantella - Adult Expansion - OStim')
-    write('SKSE/Plugins/MantellaSoftware/data/actions/' + new, json.dumps(d, indent=4))
+ACTIONS = 'SKSE/Plugins/MantellaSoftware/data/actions/'
+for name in ('mantella_mae_rate_positions.json', 'mantella_mae_change_position.json'):
+    d = json.load(open(ACTIONS + name, encoding='utf-8'))
+    d['note'] = d['note'].replace('Mantella - Adult Expansion - OStim', 'Mantella Living World - OStim Expansion')
+    write(ACTIONS + name, json.dumps(d, indent=4))
 print('records written:', len(G), 'globals,', len(Q), 'quests')

@@ -5,7 +5,7 @@ set -u
 NGVO=D:/Modlists/NGVO
 HERE=$(cd "$(dirname "$0")" && pwd)
 LOG="$NGVO/overwrite/SKSE/Plugins/MantellaAdultExpansion/test.log"
-CAT="$NGVO/mods/Mantella - Adult Expansion - OStim - Flows (test)/SKSE/Plugins/StorageUtilData/MantellaAdultExpansion/flows.json"
+CAT="$NGVO/mods/Mantella Living World - OStim Expansion - Flows (test)/SKSE/Plugins/StorageUtilData/MantellaAdultExpansion/flows.json"
 # One driver at a time: two runs at once interleave their scenes and the log.
 LOCK="$NGVO/overwrite/SKSE/Plugins/MantellaAdultExpansion/run.lock"
 mkdir -p "$(dirname "$LOCK")"; mkdir "$LOCK" 2>/dev/null || { echo "another test run is going (remove $LOCK if not)"; exit 3; }
