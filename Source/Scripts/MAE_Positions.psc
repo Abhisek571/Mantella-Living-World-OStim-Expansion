@@ -24,6 +24,7 @@ Event OnInit()
 EndEvent
 
 Function Register()
+	RegisterForModEvent("ostim_thread_start", "OnThreadStart")
 	RegisterForModEvent("ostim_thread_scenechanged", "OnSceneChanged")
 	RegisterForModEvent("ostim_actor_orgasm", "OnOrgasm")
 	RegisterForModEvent("ostim_thread_end", "OnThreadEnd")
@@ -130,14 +131,40 @@ Event OnNpcAdded(Form akActor)
 	If !npc || npc == PlayerRef || !Flows.Built()
 		Return
 	EndIf
+	Register()  ; saves made before the scene-start event existed never ran OnInit again
 	string line = FavouritesLine(npc)
-	If line == "" && StorageUtil.GetIntValue(npc, KEY_RATED, 0) == 0
-		line = npc.GetDisplayName() + "'s favourite sex positions have not been rated yet."
+	If line == "" && npc == Flows.ScenePartner()
+		line = UnratedLine(npc)
 	EndIf
 	If line != ""
 		AddMantellaEvent(line)
 	EndIf
 EndEvent
+
+; A scene with the player started while she was already talking: ask for the rating now. Not talking: OnNpcAdded
+; asks when she joins, since Mantella queues events for whoever talks next.
+Event OnThreadStart(string asEventName, string asArg, float afThreadID, Form akSender)
+	Actor npc = Flows.PartnerOf(afThreadID as int)
+	If npc && Flows.Built() && InConversation(npc) && FavouritesLine(npc) == ""
+		string line = UnratedLine(npc)
+		If line != ""
+			AddMantellaEvent(line)
+		EndIf
+	EndIf
+EndEvent
+
+bool Function InConversation(Actor akActor)
+	Faction participants = Game.GetFormFromFile(0x06FE24, "Mantella.esp") as Faction
+	Return participants && akActor.IsInFaction(participants)
+EndFunction
+
+; The rating request, only for her partner in a scene: everyone else would rate positions on a first hello.
+string Function UnratedLine(Actor akActor)
+	If StorageUtil.GetIntValue(akActor, KEY_RATED, 0) != 0
+		Return ""
+	EndIf
+	Return akActor.GetDisplayName() + "'s favourite sex positions have not been rated yet."
+EndFunction
 
 ; Mantella's one-time rating from her personality: up to three position names, comma separated.
 Event OnRateAdvanced(Form akSpeaker, Form akConversation, int aiArguments)

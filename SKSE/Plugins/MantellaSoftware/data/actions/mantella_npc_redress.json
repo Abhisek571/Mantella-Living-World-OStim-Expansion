@@ -1,0 +1,35 @@
+{
+    "_dependencies": [
+        "ActionsForMantellaScript.psc",
+        "src.actions.function_manager.FunctionManager"
+    ],
+    "identifier": "mantella_npc_redress",
+    "name": "Redress",
+    "description": "Make one or more NPCs put their clothing/armor back on.",
+    "key": "Redress",
+    "enabled": true,
+    "lw_gate": "close",
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) who will put their clothes back on.",
+            "items": {
+                "type": "string"
+            },
+            "scope": "conversation"
+        }
+    },
+    "required": [
+        "source"
+    ],
+    "prompt": "CRITICAL SYSTEM COMMAND - EQUIPMENT RESTORATION TRIGGER:\n\nThis tool restores clothing/armor to NPCs.\n\nEXECUTION RULES:\n- NPC INTENT: Fire this tool if you (the NPC) want to get dressed, or if you state in your dialogue that you are putting your clothes back on.\n- PLAYER EVENT: Fire this tool if the player inputs an event log stating that you or they are getting dressed (e.g., 'Player puts armor back on').\n- CONSECUTIVE OVERRIDE: You may fire this tool consecutively if the intent or event occurs again.\n\nIf you want to get dressed, say you will get dressed, or the player event log dictates getting dressed , begin your response with '{key}:'.",
+    "allowed_games": [
+        "skyrim"
+    ],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": true,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

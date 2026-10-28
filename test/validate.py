@@ -19,7 +19,9 @@ EXPECT = {   # regex; a literal | is \|
     'request': {'must': [r'REQUEST\|', r'SET\|request'], 'not': ['none fits']},
     'request-bad': {'must': [r'EVENT\|There is no way to do '], 'not': [r'SET\|request']},
     'favourites': {'must': [r"EVENT\|.*'s favourite sex positions: "], 'not': []},
-    'unrated': {'must': [r'EVENT\|.* have not been rated yet\.'], 'not': []},
+    'unrated': {'must': [], 'not': [r'EVENT\|.* have not been rated yet\.']},
+    'unrated-scene': {'must': [r'EVENT\|.* have not been rated yet\.'], 'not': []},
+    'unrated-quiet': {'must': [], 'not': [r'EVENT\|.* have not been rated yet\.']},
     'summary': {'must': [r'END\|', r'EVENT\|.* finished having sex'], 'not': []},
     'bystander': {'must': [r'EVENT\|.* watching from the side'], 'not': []},
 }

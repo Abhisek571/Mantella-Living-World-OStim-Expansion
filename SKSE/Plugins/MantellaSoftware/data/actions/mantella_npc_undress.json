@@ -1,0 +1,35 @@
+{
+  "_dependencies": [
+    "ActionsForMantellaScript.psc",
+    "src.actions.function_manager.FunctionManager"
+  ],
+  "identifier": "mantella_npc_undress",
+  "name": "Undress",
+  "description": "Make one or more NPCs remove their clothing/armor.",
+  "key": "Undress",
+  "enabled": true,
+  "lw_gate": "close",
+  "parameters": {
+    "source": {
+      "type": "array",
+      "description": "The NPC(s) who will undress.",
+      "items": {
+        "type": "string"
+      },
+      "scope": "conversation"
+    }
+  },
+  "required": [
+    "source"
+  ],
+  "prompt": "CRITICAL SYSTEM COMMAND - EQUIPMENT REMOVAL TRIGGER:\n\nThis tool removes clothing/armor from NPCs.\n\nEXECUTION RULES:\n- NPC INTENT: Fire this tool if you (the NPC) want to undress, or if you state in your dialogue that you are taking your clothes off.\n- PLAYER EVENT: Fire this tool if the player inputs an event log stating that you or they are undressing (e.g., 'Player removes NPCs clothes').\n- CONSECUTIVE OVERRIDE: You may fire this tool consecutively if the intent or event occurs again.\n\nIf you want to undress, say you will undress, or the player event log dictates undressing, begin your response with '{key}:'.",
+  "allowed_games": [
+    "skyrim"
+  ],
+  "requires_response": false,
+  "is-interrupting": false,
+  "allow_repeat": true,
+  "one-on-one": true,
+  "multi-npc": true,
+  "radiant": true
+}

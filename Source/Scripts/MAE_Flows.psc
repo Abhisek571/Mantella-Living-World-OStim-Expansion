@@ -555,6 +555,14 @@ Actor Function PartnerOf(int aiThreadID)
 	Return other
 EndFunction
 
+; The partner of the scene this script runs; None outside one.
+Actor Function ScenePartner()
+	If sceneThread < 0
+		Return None
+	EndIf
+	Return partner
+EndFunction
+
 ; The man of the pair: whoever a finish scene is for.
 Actor Function FinishActor()
 	If PlayerRef.GetActorBase().GetSex() == 0
@@ -565,7 +573,7 @@ EndFunction
 
 ; The Arousal module's own satisfied / overwhelmed flags when it is installed; otherwise her arousal.
 bool Function NotSatisfied(Actor akPartner)
-	If Game.GetModByName("Mantella Living World - Arousal.esp") != 255
+	If Game.GetModByName("Mantella Living World - Arousal.esp") != 255 || Game.GetLightModByName("Mantella Living World - Arousal.esp") != 65535
 		Return StorageUtil.GetIntValue(akPartner, "MantellaOSLA_Satisfied", 0) != 1 && StorageUtil.GetIntValue(akPartner, "MantellaOSLA_Overwhelmed", 0) != 1
 	EndIf
 	Return OSLArousedNative.GetArousalNoSideEffects(akPartner) >= SATISFIED_AROUSAL

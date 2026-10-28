@@ -88,11 +88,25 @@ EndFunction
 ; Mantella: akNpc joined the conversation.
 Function Join(Actor akNpc) Global
 	Mark("join|" + akNpc.GetDisplayName())
+	akNpc.AddToFaction(Game.GetFormFromFile(0x06FE24, "Mantella.esp") as Faction)  ; Mantella's participants faction
 	int handle = ModEvent.Create("MantellaConversation_NPC_Added")
 	If handle
 		ModEvent.PushForm(handle, akNpc)
 		ModEvent.Send(handle)
 	EndIf
+EndFunction
+
+; Mantella: akNpc left the conversation.
+Function Leave(Actor akNpc) Global
+	Mark("leave|" + akNpc.GetDisplayName())
+	akNpc.RemoveFromFaction(Game.GetFormFromFile(0x06FE24, "Mantella.esp") as Faction)
+EndFunction
+
+; Old save: the Positions quest's scene-start registration from before that event existed is missing.
+Function DropSceneStartEvent() Global
+	Quest positions = Game.GetFormFromFile(0x000823, "Mantella Living World - OStim Expansion.esp") as Quest
+	Mark("drop scene-start event|" + positions)
+	positions.UnregisterForModEvent("ostim_thread_start")
 EndFunction
 
 ; Mantella: the conversation ended.

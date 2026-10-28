@@ -1,5 +1,5 @@
 Scriptname MAE_Text Hidden
-{Shared wording helpers for the Adult Expansion scripts, and the test log.}
+{Shared wording helpers for the OStim Expansion scripts, and the test log.}
 
 ; Appends a timestamped line to Data/SKSE/Plugins/MantellaAdultExpansion/test.log (lands in MO2's overwrite).
 ; Callers only log when MAE_TestMode is 1.

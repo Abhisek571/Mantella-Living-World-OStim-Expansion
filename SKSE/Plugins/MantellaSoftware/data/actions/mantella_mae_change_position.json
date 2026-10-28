@@ -38,5 +38,6 @@
     "allow_repeat": true,
     "one-on-one": true,
     "multi-npc": true,
-    "radiant": false
+    "radiant": false,
+    "lw_gate": "close"
 }

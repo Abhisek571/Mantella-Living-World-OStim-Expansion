@@ -43,8 +43,15 @@ con "set GameHour to 12"
 t Setup '[true]' >/dev/null
 t EndConversation >/dev/null   # nobody left over in the fake conversation from an earlier run
 
-note "1/9 unrated: she joins, nothing rated yet"
+note "1/9 unrated: she joins outside a scene, nothing rated yet (no rating request)"
 t Begin '["unrated"]'; t Forget "[$V]"; t Join "[$V]"; sleep 3
+
+note "1b/9 unrated, scene with nobody talking: no rating request (Mantella would queue it for the next talk)"
+t Leave "[$V]" >/dev/null; t EndConversation >/dev/null
+t Begin '["unrated-quiet"]'; t Forget "[$V]"; scene; end_scene
+
+note "1c/9 unrated, scene starts while she talks (old save without the scene-start event): the rating request goes to her"
+t Begin '["unrated-scene"]'; t Forget "[$V]"; t DropSceneStartEvent >/dev/null; t Join "[$V]"; sleep 3; scene; end_scene
 
 note "2/9 flow: opener then three rolled sets"
 t Begin '["flow"]'; scene

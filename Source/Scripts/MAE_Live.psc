@@ -611,14 +611,14 @@ Function SendLine(string asLine, float afCooldown, string asExtra = "", float af
 	awaitingPlayer = false
 	lastTurnTime = now
 	conversation.AddExtraRequestAction(EVENT_TURN)
-	conversation.RequestContinueConversation(true)
-	; RequestContinueConversation(true) leaves Mantella expecting an action result;
-	; clear that so the next real action does not wait for it.
+	; RequestContinueConversation(true) waits (up to 5 s) for an action result, then re-arms that wait for the next
+	; action. Answer it first: sent after the call, it would cancel the next real action's wait instead.
 	int done = ModEvent.Create("Mantella_ActionResponseCompleted")
 	If done
 		ModEvent.PushString(done, EVENT_TURN)
 		ModEvent.Send(done)
 	EndIf
+	conversation.RequestContinueConversation(true)
 EndFunction
 
 Function AddEvent(string asLine)
