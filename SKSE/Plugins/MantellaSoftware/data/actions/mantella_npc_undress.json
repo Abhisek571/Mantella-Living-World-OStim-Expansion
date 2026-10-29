@@ -6,6 +6,7 @@
   "identifier": "mantella_npc_undress",
   "name": "Undress",
   "description": "Make one or more NPCs remove their clothing/armor.",
+  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Needs Actions For Mantella and OStim.",
   "key": "Undress",
   "enabled": true,
   "lw_gate": "close",

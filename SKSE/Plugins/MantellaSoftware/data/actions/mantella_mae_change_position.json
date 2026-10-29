@@ -2,7 +2,7 @@
     "identifier": "mantella_mae_change_position",
     "name": "ChangePosition",
     "description": "Use only during sex with the player, when the speaking NPC agrees to switch to a different position (because the player asked, or because she wants to). Only agree if it fits her mood and personality; she may say no instead.",
-    "note": "Needs OStim and Mantella Living World - OStim Expansion (flows built). Plays a matching animation from the installed packs.",
+    "note": "Needs OStim, Mantella Living World - OStim Expansion (flows built) and Mantella's Advanced Actions on. Only during sex with you, in a two-person scene with an opposite-sex partner. Plays a matching animation from your packs; big-guy, femdom, futa and aggressive sets are skipped. Offered only to close NPCs.",
     "key": "ChangePosition",
     "parameters": {
         "position": {

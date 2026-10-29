@@ -6,6 +6,7 @@
   "identifier": "mantella_npc_sex_group",
   "name": "GroupSexWithPlayer",
   "description": "Initiate a group sex scene with the player and multiple NPCs (2-4 NPCs).",
+  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Needs Actions For Mantella and OStim.",
   "key": "GroupSexWithPlayer",
   "enabled": true,
   "lw_gate": "close",

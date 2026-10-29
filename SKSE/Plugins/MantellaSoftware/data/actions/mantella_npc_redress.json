@@ -6,6 +6,7 @@
     "identifier": "mantella_npc_redress",
     "name": "Redress",
     "description": "Make one or more NPCs put their clothing/armor back on.",
+    "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Needs Actions For Mantella and OStim.",
     "key": "Redress",
     "enabled": true,
     "lw_gate": "close",
