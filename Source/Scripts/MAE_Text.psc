@@ -7,6 +7,17 @@ Function TestLog(string asLine) Global
 	MiscUtil.WriteToFile("Data/SKSE/Plugins/MantellaAdultExpansion/test.log", Utility.GetCurrentRealTime() + "|" + asLine + "\n", true, false)
 EndFunction
 
+; Children never take part in anything this mod does. Some mods clear the child flag, so the race is checked too.
+bool Function IsChildActor(Actor akActor) Global
+	If !akActor
+		Return false
+	ElseIf akActor.IsChild()
+		Return true
+	EndIf
+	Race actorRace = akActor.GetRace()
+	Return actorRace && StringUtil.Find(MiscUtil.GetRaceEditorID(actorRace), "Child") >= 0
+EndFunction
+
 ; "a", "a, b", then " and c" for the last of several.
 string Function ListAdd(string asList, string asItem, bool abLast) Global
 	If asList == ""

@@ -29,7 +29,7 @@ EndEvent
 
 Event OnNpcAdded(Form akActor)
 	Actor npc = akActor as Actor
-	If !npc || npc == PlayerRef
+	If !npc || npc == PlayerRef || MAE_Text.IsChildActor(npc)
 		Return
 	EndIf
 	If !talkers
@@ -73,7 +73,7 @@ Actor[] Function Candidates(Actor[] akSceneActors)
 	int i = 0
 	While i < talkers.Length
 		Actor npc = talkers[i]
-		If npc && akSceneActors.Find(npc) < 0 && !npc.IsDead()
+		If npc && akSceneActors.Find(npc) < 0 && !npc.IsDead() && !MAE_Text.IsChildActor(npc)
 			result[n] = npc
 			n += 1
 		EndIf

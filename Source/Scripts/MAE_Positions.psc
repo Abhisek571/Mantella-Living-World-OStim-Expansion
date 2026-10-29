@@ -128,7 +128,7 @@ EndFunction
 
 Event OnNpcAdded(Form akActor)
 	Actor npc = akActor as Actor
-	If !npc || npc == PlayerRef || !Flows.Built()
+	If !npc || npc == PlayerRef || !Flows.Built() || MAE_Text.IsChildActor(npc)
 		Return
 	EndIf
 	Register()  ; saves made before the scene-start event existed never ran OnInit again
@@ -169,7 +169,7 @@ EndFunction
 ; Mantella's one-time rating from her personality: up to three position names, comma separated.
 Event OnRateAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 	Actor npc = akSpeaker as Actor
-	If !npc || npc == PlayerRef || StorageUtil.GetIntValue(npc, KEY_RATED, 0) == 1
+	If !npc || npc == PlayerRef || StorageUtil.GetIntValue(npc, KEY_RATED, 0) == 1 || MAE_Text.IsChildActor(npc)
 		Return
 	EndIf
 	string[] names = PapyrusUtil.StringSplit(SKSE_HTTP.getString(aiArguments, "positions", ""), ",")

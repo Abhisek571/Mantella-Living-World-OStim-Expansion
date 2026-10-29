@@ -81,8 +81,13 @@ EndEvent
 
 ; A save quit mid-scene comes back quiet: end it once the player is not in a scene.
 Event OnMenuClose(string asMenuName)
+	If OActor.IsInOStim(PlayerRef)
+		Return
+	EndIf
+	; A scene saved mid-way never sends its end event: forget it, or a new scene with the same thread id is not seen as new.
+	sceneThread = -1
 	MLW_Hub hub = Hub()
-	If hub && !OActor.IsInOStim(PlayerRef)
+	If hub
 		hub.Unquiet(QUIET_REASON)
 	EndIf
 EndEvent
@@ -178,7 +183,7 @@ Event OnSceneChanged(string asEventName, string asArg, float afThreadID, Form ak
 	EndIf
 	bool first = lastActs == ""
 	float now = Utility.GetCurrentRealTime()
-	If !first && now - lastSceneLineTime < SCENE_LINE_GAP
+	If !first && Elapsed(lastSceneLineTime, now) < SCENE_LINE_GAP
 		; Skipped; lastActs stays, so the next change reports the newest acts.
 		Return
 	EndIf
@@ -264,6 +269,9 @@ Function BeginScene(int aiThreadID, string asPartners)
 	int i = 0
 	While i < actors.Length && i < sceneActors.Length
 		sceneActors[i] = actors[i]
+		If actors[i] != PlayerRef
+			RequestTier(actors[i])
+		EndIf
 		i += 1
 	EndWhile
 	RegisterForSingleUpdate(EXCITEMENT_POLL)
@@ -318,7 +326,7 @@ Event OnSpeedChanged(string asEventName, string asArg, float afThreadID, Form ak
 	bool faster = speed > lastSpeed
 	lastSpeed = speed
 	float now = Utility.GetCurrentRealTime()
-	If now - lastSpeedLineTime < SPEED_LINE_GAP || !ConversationRunning()
+	If Elapsed(lastSpeedLineTime, now) < SPEED_LINE_GAP || !ConversationRunning()
 		Return
 	EndIf
 	string pace = PaceWord(speed, OMetadata.GetMaxSpeed(sceneID))
@@ -394,13 +402,14 @@ string Function BandLine(Actor akPartner, int aiBand)
 	Return name + howFar + "; " + name + " reacts out loud in a sentence or two, " + StyleHint(akPartner) + "."
 EndFunction
 
-; How she sounds, from the Arousal module's temperament (reserved / bold / forward).
+; How she sounds, from the Arousal module's temperament (reserved / bold / forward). The Arousal module is optional,
+; so its script is never named here: it answers MLW_TierRequest by writing MLW_Tier (temperament + 1) on the actor.
+; The scene start asks; band lines come at least QUIET_START seconds later, and each one asks again for the next.
 string Function StyleHint(Actor akPartner)
 	int tier = 0
-	Quest osla = Game.GetFormFromFile(0x000800, "Mantella Living World - Arousal.esp") as Quest
-	MantellaOSLA_Main bridge = osla as MantellaOSLA_Main
-	If bridge
-		tier = bridge.GetTier(akPartner)
+	If ArousalLoaded()
+		tier = StorageUtil.GetIntValue(akPartner, "MLW_Tier", 1) - 1
+		RequestTier(akPartner)
 	EndIf
 	If tier == 2 && MAE_DirtyTalk.GetValueInt() == 1
 		Return "talking dirty"
@@ -408,6 +417,30 @@ string Function StyleHint(Actor akPartner)
 		Return "openly excited and saying what feels good"
 	EndIf
 	Return "breathless, only a few words, a little shy"
+EndFunction
+
+bool Function ArousalLoaded()
+	Return Game.GetModByName("Mantella Living World - Arousal.esp") != 255 || Game.GetLightModByName("Mantella Living World - Arousal.esp") != 65535
+EndFunction
+
+Function RequestTier(Actor akActor)
+	If !akActor || !ArousalLoaded()
+		Return
+	EndIf
+	int handle = ModEvent.Create("MLW_TierRequest")
+	If handle
+		ModEvent.PushForm(handle, akActor)
+		ModEvent.Send(handle)
+	EndIf
+EndFunction
+
+; Seconds since a real-time stamp. Real time restarts at 0 on every launch, so a stamp from an earlier launch is ahead
+; of now: it counts as long ago instead of blocking for as long as that launch ran.
+float Function Elapsed(float afStamp, float afNow)
+	If afStamp > afNow
+		Return 100000.0
+	EndIf
+	Return afNow - afStamp
 EndFunction
 
 ; One clean line for Mantella's memory once the player's scene is over, so the
@@ -583,7 +616,7 @@ Function SendLine(string asLine, float afCooldown, string asExtra = "", float af
 			AddEvent(asExtra)
 		EndIf
 		float t = Utility.GetCurrentRealTime()
-		If t - lastTurnTime >= afCooldown && Utility.RandomFloat(0.0, 1.0) < afTurnChance
+		If Elapsed(lastTurnTime, t) >= afCooldown && Utility.RandomFloat(0.0, 1.0) < afTurnChance
 			lastTurnTime = t
 			MAE_Text.TestLog("TURN|requested")
 		Else
@@ -600,7 +633,7 @@ Function SendLine(string asLine, float afCooldown, string asExtra = "", float af
 		AddEvent(asExtra)
 	EndIf
 	float now = Utility.GetCurrentRealTime()
-	If !awaitingPlayer || conversation.GetIsTalking() || now - lastTurnTime < afCooldown || Utility.RandomFloat(0.0, 1.0) >= afTurnChance
+	If !awaitingPlayer || conversation.GetIsTalking() || Elapsed(lastTurnTime, now) < afCooldown || Utility.RandomFloat(0.0, 1.0) >= afTurnChance
 		Return
 	EndIf
 	; Let Mantella take the queued event before the turn reads it.

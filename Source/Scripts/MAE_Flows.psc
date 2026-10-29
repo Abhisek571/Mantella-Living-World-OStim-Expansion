@@ -31,6 +31,8 @@ float Property RANK_JUMP_MULT = 0.5 AutoReadOnly
 ; OSL arousal still at or above this after her climax = not satisfied (when the Arousal module is missing).
 float Property SATISFIED_AROUSAL = 30.0 AutoReadOnly
 float Property SATISFIED_CHECK_DELAY = 4.0 AutoReadOnly
+; The Arousal module's appetite for an NPC it has not rated (MantellaOSLA_Main.UnratedAppetite).
+int Property UNRATED_APPETITE = 10 AutoReadOnly
 string Property KEY_LAST_POSES = "MAE_LastScenePoses" AutoReadOnly
 
 int sceneThread = -1
@@ -549,7 +551,7 @@ Actor Function PartnerOf(int aiThreadID)
 	If other == PlayerRef
 		other = actors[1]
 	EndIf
-	If !other || other.GetActorBase().GetSex() == PlayerRef.GetActorBase().GetSex()
+	If !other || other.GetActorBase().GetSex() == PlayerRef.GetActorBase().GetSex() || MAE_Text.IsChildActor(other)
 		Return None
 	EndIf
 	Return other
@@ -572,9 +574,25 @@ Actor Function FinishActor()
 EndFunction
 
 ; The Arousal module's own satisfied / overwhelmed flags when it is installed; otherwise her arousal.
+; The Arousal module only sets those flags once her appetite is rated. Unrated, she is satisfied at its default
+; appetite (UNRATED_APPETITE climaxes, or the session need if long peaks raised it), counted from its climax tally.
 bool Function NotSatisfied(Actor akPartner)
 	If Game.GetModByName("Mantella Living World - Arousal.esp") != 255 || Game.GetLightModByName("Mantella Living World - Arousal.esp") != 65535
-		Return StorageUtil.GetIntValue(akPartner, "MantellaOSLA_Satisfied", 0) != 1 && StorageUtil.GetIntValue(akPartner, "MantellaOSLA_Overwhelmed", 0) != 1
+		If StorageUtil.GetIntValue(akPartner, "MantellaOSLA_Overwhelmed", 0) == 1
+			Return false
+		EndIf
+		int appetite = JsonUtil.GetIntValue("MantellaOSLA/settings.json", "appetite_" + akPartner.GetDisplayName(), 0)
+		If appetite <= 0
+			appetite = StorageUtil.GetIntValue(akPartner, "MantellaOSLA_Appetite", 0)
+		EndIf
+		If appetite > 0
+			Return StorageUtil.GetIntValue(akPartner, "MantellaOSLA_Satisfied", 0) != 1
+		EndIf
+		float need = StorageUtil.GetFloatValue(akPartner, "MantellaOSLA_Need", 0.0)
+		If need < UNRATED_APPETITE as float
+			need = UNRATED_APPETITE as float
+		EndIf
+		Return StorageUtil.GetFloatValue(akPartner, "MantellaOSLA_Climaxes", 0.0) + 0.5 < need
 	EndIf
 	Return OSLArousedNative.GetArousalNoSideEffects(akPartner) >= SATISFIED_AROUSAL
 EndFunction
