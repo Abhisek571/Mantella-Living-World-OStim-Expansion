@@ -540,7 +540,7 @@ bool Function ConversationRunning()
 	Return conversation && conversation.IsRunning()
 EndFunction
 
-; "Vega and the player"; with two partners "Vega, Nyri and the player" (Partners joins the last name with "and").
+; "Mjoll and the player"; with two partners "Mjoll, Aela and the player" (Partners joins the last name with "and").
 string Function WithPlayer(string asPartners)
 	int last = StringUtil.Find(asPartners, " and ")
 	If last < 0

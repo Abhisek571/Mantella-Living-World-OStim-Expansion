@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Launches the DevBench Test game on screen 2, loads the test save, checks the setup reminder only shows once the
+# Launches the test game on screen 2, loads the test save, checks the setup reminder only shows once the
 # player is in the world, then runs run-tests.sh. Leaves the game running; the caller closes it.
 # usage: bash full-run.sh <launcher .bat> <save name> <partner form> <bystander form>
 set -u
-NGVO=D:/Modlists/NGVO
+MO2=${MO2:?set MO2 to your Mod Organizer 2 instance folder}
 HERE=$(cd "$(dirname "$0")" && pwd)
-db() { bash "$NGVO/tools/devbench-cli.sh" "$@" 2>&1; }
+db() { bash "$MO2/tools/devbench-cli.sh" "$@" 2>&1; }
 cmd.exe //c start "" explorer.exe "$(cygpath -w "$1")"
 for i in $(seq 1 100); do db alive | grep -q 'no response' || break; sleep 6; done
 echo "devbench up"; sleep 10

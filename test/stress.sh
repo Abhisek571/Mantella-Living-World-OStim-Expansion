@@ -3,9 +3,9 @@
 # switched off in game (flows, live lines, bystanders), then switched on.
 # usage: bash stress.sh <partner form> <cycles per phase>
 set -u
-NGVO=D:/Modlists/NGVO
+MO2=${MO2:?set MO2 to your Mod Organizer 2 instance folder}
 V="{\"form\":\"$1\"}"; N=${2:-6}
-db() { bash "$NGVO/tools/devbench-cli.sh" "$@" 2>&1; }
+db() { bash "$MO2/tools/devbench-cli.sh" "$@" 2>&1; }
 call() { db call "$@" | py -3 -I -c "import json,sys
 try:
     d=json.load(sys.stdin); print(d.get('returned') if d.get('called') else 'ERROR')

@@ -6,7 +6,7 @@ only describes the building blocks: each set's pose, intensity, furniture and th
 often each pose naturally leads to each other pose across all packs, and every scene's pose. The catalogue is JSON
 read through PapyrusUtil JsonUtil (lowercase keys).
 
-usage: py -3 flowgen.py --mo2 "D:/Modlists/NGVO" --profile Default --out "<mod folder>"
+usage: py -3 flowgen.py --mo2 "<Mod Organizer 2 folder>" --profile Default --out "<mod folder>"
        py -3 flowgen.py --data auto --zip "<file.zip>"     (Vortex: reads the game's Data folder, packs a zip to install)
 """
 import argparse, collections, json, os, re, shutil, sys, tempfile, zipfile
