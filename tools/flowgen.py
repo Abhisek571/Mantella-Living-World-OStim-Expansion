@@ -7,8 +7,9 @@ often each pose naturally leads to each other pose across all packs, and every s
 read through PapyrusUtil JsonUtil (lowercase keys).
 
 usage: py -3 flowgen.py --mo2 "D:/Modlists/NGVO" --profile Default --out "<mod folder>"
+       py -3 flowgen.py --data auto --zip "<file.zip>"     (Vortex: reads the game's Data folder, packs a zip to install)
 """
-import argparse, collections, json, os, re, sys
+import argparse, collections, json, os, re, shutil, sys, tempfile, zipfile
 
 CLIMAX_ACTIONS = {'facial', 'cumonbelly', 'cumonbutt', 'cumonchest', 'cumonvulva', 'cumshot', 'ejaculation', 'creampie',
                   'analcreampie', 'cuminmouth', 'cumonface', 'cumonfeet', 'cumonback', 'cumonbreasts'}
@@ -65,6 +66,55 @@ def read_scenes(mo2, mods, skip_mod):
                     except ValueError:
                         pass
     return scenes, owner
+
+
+def folder_pack(name):
+    """A scene folder as a pack name: "BillyyTable2P", "AnubChair2P" and "DrG_LTNWall" are Billyy, Anub and DrG_LTN."""
+    base = re.sub(r'\d+P$', '', name)
+    base = re.sub(r'(Chair|Wall|Table|Bench|Bed(Left|Right)?|Shelf|CookingPot)$', '', base)
+    return base or name
+
+
+def read_scenes_data(data):
+    """Vortex deploys every enabled mod into the game's Data folder. Each scene names its pack ("modpack"); scenes
+    without one count as the pack of their first subfolder."""
+    folder = os.path.join(data, 'SKSE', 'Plugins', 'OStim', 'scenes')
+    scenes, owner = {}, {}
+    for root, _, files in os.walk(folder):
+        rel = os.path.relpath(root, folder)
+        pack = 'Loose scenes' if rel == '.' else folder_pack(rel.split(os.sep)[0])
+        for f in files:
+            if f.lower().endswith('.json'):
+                sid = f[:-5].lower()
+                try:
+                    j = load_json(os.path.join(root, f))
+                except ValueError:
+                    continue
+                scenes[sid] = (f[:-5], j)
+                named = j.get('modpack') if isinstance(j, dict) else None
+                owner[sid] = named.strip() if isinstance(named, str) and named.strip() else pack
+    return scenes, owner
+
+
+def find_data():
+    """The game's Data folder: next to this tool when Vortex deployed it there, else the install the registry names."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    for up in (os.path.join(here, '..', '..'), os.path.join(here, '..')):
+        if os.path.isdir(os.path.join(up, 'SKSE', 'Plugins', 'OStim')):
+            return os.path.normpath(up)
+    try:
+        import winreg
+        for view in (winreg.KEY_WOW64_32KEY, winreg.KEY_WOW64_64KEY):
+            try:
+                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Bethesda Softworks\Skyrim Special Edition', 0, winreg.KEY_READ | view)
+                path = winreg.QueryValueEx(key, 'Installed Path')[0]
+                if os.path.isdir(os.path.join(path, 'Data')):
+                    return os.path.join(path, 'Data')
+            except OSError:
+                pass
+    except ImportError:
+        pass
+    return None
 
 
 class Library:
@@ -252,15 +302,31 @@ def short_pack(pack):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--mo2', required=True)
+    ap.add_argument('--mo2', help='Mod Organizer 2 instance folder')
     ap.add_argument('--profile', default='Default')
-    ap.add_argument('--out', required=True, help='mod folder to write into (sequences + catalogue)')
+    ap.add_argument('--data', help='game Data folder (Vortex), or "auto" to find it')
+    ap.add_argument('--out', help='mod folder to write into (sequences + catalogue)')
+    ap.add_argument('--zip', help='with --data: also pack the result into this zip, to install as a mod')
     ap.add_argument('--seconds', type=float, default=25.0, help='seconds per stage')
     args = ap.parse_args()
 
-    out_mod = os.path.basename(os.path.normpath(args.out))
-    mods = enabled_mods(args.mo2, args.profile)
-    lib = Library(*read_scenes(args.mo2, mods, skip_mod=out_mod))
+    if bool(args.mo2) == bool(args.data):
+        ap.error('give either --mo2 or --data')
+    if args.data:
+        data = find_data() if args.data == 'auto' else args.data
+        if not data or not os.path.isdir(os.path.join(data, 'SKSE', 'Plugins', 'OStim', 'scenes')):
+            raise SystemExit('Could not find the game Data folder with OStim scenes. Deploy your mods in Vortex first, '
+                             'or pass the folder: --data "<Skyrim Special Edition>/Data"')
+        if not args.out:
+            args.out = tempfile.mkdtemp(prefix='mlw_flows_')
+        print(f'Reading OStim packs from {data}')
+        lib = Library(*read_scenes_data(data))
+    else:
+        if not args.out:
+            ap.error('--out is required with --mo2')
+        out_mod = os.path.basename(os.path.normpath(args.out))
+        mods = enabled_mods(args.mo2, args.profile)
+        lib = Library(*read_scenes(args.mo2, mods, skip_mod=out_mod))
     moves = natural_moves(lib)
     packs = sorted({lib.owner[s] for s in lib.mf})
 
@@ -326,6 +392,15 @@ def main():
             for s in all_sets[pack_start[i]:pack_start[i] + pack_count[i]]:
                 r.write(f'    {s["seq"]}  {s["label"]}  ({s["pose"]}, {s["act"]}, {s["furniture"]}, {theme_key(s["theme"])}, {len(s["stages"])} stages)\n')
     print(f'Flows built: {len(all_sets)} sets from {len(pack_names)} packs -> {args.out}')
+    if args.data and args.zip:
+        os.makedirs(os.path.dirname(os.path.abspath(args.zip)), exist_ok=True)
+        with zipfile.ZipFile(args.zip, 'w', zipfile.ZIP_DEFLATED) as z:
+            for root, _, files in os.walk(args.out):
+                for f in files:
+                    full = os.path.join(root, f)
+                    z.write(full, os.path.relpath(full, args.out))
+        shutil.rmtree(args.out, ignore_errors=True)
+        print(f'Packed for Vortex: {args.zip}')
 
 
 if __name__ == '__main__':

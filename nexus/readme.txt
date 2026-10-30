@@ -12,7 +12,7 @@ Requirements
 - Papyrus MessageBox - SKSE NG
 - PapyrusUtil SE and SKSE
 - Actions For Mantella - Expanded Sex Actions, one file in the Files tab of Mantella - Community Resources (https://www.nexusmods.com/skyrimspecialedition/mods/174770), for the sex, undress and redress actions; without it they do nothing. Not the older Actions for Mantella for Mantella 0.13
-- Python 3 (the py launcher) and Mod Organizer 2, to build the flows (Vortex is not supported)
+- Python 3 (the py launcher), to build the flows (Mod Organizer 2 or Vortex)
 - Optional: Mantella Living World - Arousal (satisfied judgement, temperament styling, "close" standing)
 
 Before you start
@@ -24,10 +24,10 @@ Before you start
 6. Nothing happens? Living World Main Status in Mantella's settings page lists what is missing.
 
 Installation
-1. Install the hub, then this module. In MO2's left pane, place this mod below Actions For Mantella - Expanded Sex Actions (from Mantella - Community Resources): it replaces five of that mod's action files, and placed above it the ungated versions win.
-2. Close the game and run tools\Mantella Living World - OStim Expansion\Build Flows.cmd (needs Python 3 once, Mod Organizer 2).
-3. Enable the new mod "Mantella Living World - OStim Expansion - Flows".
-4. Run Build Flows again whenever you add or remove animation packs.
+1. Install the hub, then this module. It replaces five action files of Actions For Mantella - Expanded Sex Actions (from Mantella - Community Resources), so it must win over that mod: in MO2 place it below that mod in the left pane; in Vortex set it to load after that mod when Vortex shows the file conflict.
+2. Close the game and run Build Flows.cmd (needs Python 3 once). MO2: in this mod's folder, tools\Mantella Living World - OStim Expansion. Vortex: deploy first, then in the game's Data folder (from Vortex's Open menu), tools\Mantella Living World - OStim Expansion.
+3. MO2: enable the new mod "Mantella Living World - OStim Expansion - Flows". Vortex: Build Flows makes Documents\Mantella Living World\Mantella Living World - OStim Expansion - Flows.zip; install it with Install From File, enable it and deploy.
+4. Run Build Flows again whenever you add or remove animation packs (in Vortex, install the new zip over the old one).
 
 Notes
 - Settings: OStim's MCM, page "Living World".
