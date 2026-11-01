@@ -3,3 +3,4 @@ scriptName SKSE_HTTP hidden
 String function getString(Int object, String key, String default="") global native
 Int function createDictionary() global native
 Bool function setString(Int object, String key, String value) global native
+String[] function getStringArray(Int object, String key) global native

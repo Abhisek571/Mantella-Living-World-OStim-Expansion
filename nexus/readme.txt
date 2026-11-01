@@ -1,5 +1,5 @@
 Mantella Living World - OStim Expansion
-Version 1.0.1 by itsPigeon2000
+Version 1.1.0 by itsPigeon2000
 
 Mantella NPCs who live through OStim scenes with you: scenes that flow on their own from your animation packs, partners who react and talk, bystanders who comment, favourite positions that are remembered.
 
@@ -32,7 +32,8 @@ Installation
 Notes
 - Settings: OStim's MCM, page "Living World".
 - Flows work only in your own two-person scenes with an opposite-sex partner. Big-guy, femdom, futa and aggressive sets, and sets such as tied, choke, sleeping or slave, are left out.
-- Each stage runs about 25 seconds. A chain holds on its last position until the finish or a climax.
+- Each stage runs about 25 seconds. A chain holds on its last position until the finish or a climax. Pick a scene in OStim's menu at any time and the flow steps back for that scene.
+- When an NPC starts a scene with you, a box asks Yes, No or Skip. Skip fades to black, half an hour passes, and it counts as done: Mantella hears it, arousal and climax counts move. Lover's Ledger and favourite positions do not count a skipped scene. No Skip in combat. Turn the box off with "Ask before a scene" in the MCM.
 - Change Position works only during sex with you. Rating favourite positions is asked once, of close partners.
 - The game warns at launch when flows are not built.
 - Bystanders are people in the conversation who are not in the scene. They may comment after a climax.

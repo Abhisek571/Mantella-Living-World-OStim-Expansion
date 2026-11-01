@@ -1,12 +1,12 @@
 {
   "_dependencies": [
-    "ActionsForMantellaScript.psc",
+    "MAE_Ask.psc",
     "src.actions.function_manager.FunctionManager"
   ],
-  "identifier": "mantella_npc_sex",
+  "identifier": "mantella_mlw_sex",
   "name": "SexWithPlayer",
   "description": "Initiate a sex scene with the player.",
-  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Needs Actions For Mantella and OStim.",
+  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Handled by this module, which asks the player first; the file name stays so the Community Resources action is replaced.",
   "key": "SexWithPlayer",
   "enabled": true,
   "lw_gate": "close",
@@ -29,7 +29,7 @@
     "source",
     "target"
   ],
-  "prompt": "CRITICAL SYSTEM COMMAND - ANIMATION ENGINE TRIGGER:\n\nThis tool executes the sex animation engine. This is NOT for ongoing roleplay.\n\nEXECUTION RULES:\n- INITIATION ONLY: Fire this tool ONLY IF the player explicitly inputs an event log stating that sex is starting or beginning (e.g., 'Player starts having sex with NPC', 'Begin sex').\n- CONSECUTIVE OVERRIDE: You may fire this tool consecutively in the same conversation ONLY IF the player explicitly inputs another event log to start/repeat the action.\n- IGNORE CONTEXT: DO NOT fire this tool for ongoing contextual narrative events (e.g., 'Player thrusts deeper', 'Player fucks her hard'). These are for context only.\n\nIf the player explicitly initiates the start of sex, begin your response with '{key}:'.",
+  "prompt": "ANIMATION TRIGGER: starts a sex scene with the player. Use it when the player clearly asks for sex now or clearly agrees to it, or when an event says sex is starting. The player then answers a yes or no box, so a clear yes in conversation is enough. Do not use it for flirting, for talk about sex some other time, or while a scene is already running.\n\nIf it applies, begin your response with '{key}:'.",
   "allowed_games": [
     "skyrim"
   ],

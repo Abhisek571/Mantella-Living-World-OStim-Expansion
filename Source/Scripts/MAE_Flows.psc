@@ -5,6 +5,7 @@ current position's natural next moves (weighted by how often packs make that mov
 with a different set, with her favourite positions likelier and the ones from her last scene a bit less likely.
 Intensity never drops, furniture and theme never change, any position at most twice per chain, 4 sets per chain.
 The pack's finish scene waits for the man's excitement; if she climaxes but is not satisfied, a new chain starts.
+Stages are walked from here rather than as an OStim sequence, since OStim empties its scene menu during a sequence.
 Steps back for good once the player navigates by hand. test\simulate.py runs the same rules offline.
 On its own quest: SKSE keeps one mod event registration per object.}
 
@@ -49,6 +50,9 @@ string scenePoses = ","
 string[] setScenes
 ; The set before: OStim can still report one of its scenes just after the next set starts.
 string[] prevScenes
+int stageIndex
+float stageAt
+float stageSeconds
 bool finishPlayed
 ; No finish fit the current set: don't search again until the next set.
 bool finishSearched
@@ -128,7 +132,7 @@ Event OnSceneChanged(string asEventName, string asArg, float afThreadID, Form ak
 	If sceneID == "" || OMetadata.IsTransition(sceneID)
 		Return
 	EndIf
-	If setScenes.Find(sceneID) < 0 && (!prevScenes || prevScenes.Find(sceneID) < 0)
+	If sceneID != setScenes[stageIndex] && (!prevScenes || prevScenes.Find(sceneID) < 0)
 		; The player navigated somewhere else: hand the scene back to them.
 		playerControl = true
 		Log("TAKEOVER|" + sceneID)
@@ -189,6 +193,11 @@ Event OnUpdate()
 			chainSets = CHAIN_SETS ; nothing fits: hold here until the finish or a climax
 			Log("HOLD|no fitting set")
 		EndIf
+	EndIf
+	If stageIndex < setScenes.Length - 1 && now - stageAt >= stageSeconds && !OMetadata.IsTransition(OThread.GetScene(sceneThread))
+		stageIndex += 1
+		stageAt = now
+		OThread.WarpTo(sceneThread, setScenes[stageIndex], false)
 	EndIf
 	RegisterForSingleUpdate(POLL)
 EndEvent
@@ -452,11 +461,14 @@ Function PlaySet(int aiSet, string asWhy)
 	prevScenes = setScenes
 	setScenes = PapyrusUtil.StringSplit(JsonUtil.StringListGet(CATALOGUE, "setStages", aiSet), ",")
 	setStart = Utility.GetCurrentRealTime()
-	setLength = JsonUtil.IntListGet(CATALOGUE, "setStageCount", aiSet) * JsonUtil.GetIntValue(CATALOGUE, "stageSeconds")
+	stageSeconds = JsonUtil.GetIntValue(CATALOGUE, "stageSeconds") as float
+	setLength = JsonUtil.IntListGet(CATALOGUE, "setStageCount", aiSet) * stageSeconds
+	stageIndex = 0
+	stageAt = setStart
 	If OThread.IsInAutoMode(sceneThread)
 		OThread.StopAutoMode(sceneThread)
 	EndIf
-	OThread.PlaySequence(sceneThread, JsonUtil.StringListGet(CATALOGUE, "setSeq", aiSet), false, true)
+	OThread.WarpTo(sceneThread, setScenes[0], true)
 	string label = JsonUtil.StringListGet(CATALOGUE, "setLabel", aiSet)
 	Log("SET|" + asWhy + "|" + aiSet + "|pack=" + JsonUtil.IntListGet(CATALOGUE, "setPack", aiSet) + "|pose=" + pose + "|rank=" + JsonUtil.IntListGet(CATALOGUE, "setRank", aiSet) \
 			+ "|furn=" + JsonUtil.StringListGet(CATALOGUE, "setFurniture", aiSet) + "|theme=" + JsonUtil.StringListGet(CATALOGUE, "setTheme", aiSet) + "|chain=" + chainSets + "|" + label)

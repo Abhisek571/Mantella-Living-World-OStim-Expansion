@@ -219,3 +219,24 @@ Function Say(string asText) Global
 		conversation.sendRequestForPlayerInput(asText, true)
 	EndIf
 EndFunction
+
+; Mantella asks for a scene with akNpc (no conversation object: the speaker is used). asAnswer "" shows the real box.
+Function AskScene(Actor akNpc, string asAnswer) Global
+	MAE_Ask ask = Game.GetFormFromFile(0x000825, "Mantella Living World - OStim Expansion.esp") as MAE_Ask
+	Mark("ask|" + akNpc.GetDisplayName() + "|" + asAnswer)
+	ask.TestAnswerWith(asAnswer)
+	int handle = ModEvent.Create("MantellaConversation_Advanced_Action_mantella_mlw_sex")
+	If handle
+		ModEvent.PushForm(handle, akNpc)
+		ModEvent.PushForm(handle, None)
+		ModEvent.PushInt(handle, SKSE_HTTP.createDictionary())
+		ModEvent.Send(handle)
+	EndIf
+EndFunction
+
+; What a skipped scene moved, for checking.
+string Function Moved(Actor akNpc) Global
+	Return "npcArousal=" + OSLArousedNative.GetArousalNoSideEffects(akNpc) + " playerArousal=" + OSLArousedNative.GetArousalNoSideEffects(Game.GetPlayer()) \
+			+ " climaxes=" + StorageUtil.GetFloatValue(akNpc, "MantellaOSLA_Climaxes", 0.0) + " hour=" + (Game.GetForm(0x38) as GlobalVariable).GetValue() \
+			+ " day=" + (Game.GetForm(0x39) as GlobalVariable).GetValue() + " inScene=" + OActor.IsInOStim(Game.GetPlayer())
+EndFunction

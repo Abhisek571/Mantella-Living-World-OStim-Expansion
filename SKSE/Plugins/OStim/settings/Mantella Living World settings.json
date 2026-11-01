@@ -2,8 +2,18 @@
  "name": "Living World",
  "settings": [
   {
+   "name": "Ask before a scene",
+   "tooltip": "When an NPC starts a scene with you, a box asks Yes, No or Skip. Skip fades to black and counts as done. Off: scenes start straight away.",
+   "type": "toggle",
+   "defaultValue": true,
+   "variable": {
+    "mod": "Mantella Living World - OStim Expansion.esp",
+    "formid": "0x812"
+   }
+  },
+  {
    "name": "Scene flows",
-   "tooltip": "Build scenes from your animation packs (needs Build Flows.cmd).",
+   "tooltip": "Build scenes from your animation packs (needs Build Flows.cmd). Off: every scene is plain OStim. On: pick a scene in the menu and the flow steps back for that scene.",
    "type": "toggle",
    "defaultValue": true,
    "variable": {

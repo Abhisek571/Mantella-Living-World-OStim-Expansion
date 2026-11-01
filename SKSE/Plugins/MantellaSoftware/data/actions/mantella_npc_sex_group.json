@@ -1,12 +1,12 @@
 {
   "_dependencies": [
-    "ActionsForMantellaGroupSex.psc",
+    "MAE_Ask.psc",
     "src.actions.function_manager.FunctionManager"
   ],
-  "identifier": "mantella_npc_sex_group",
+  "identifier": "mantella_mlw_sex_group",
   "name": "GroupSexWithPlayer",
   "description": "Initiate a group sex scene with the player and multiple NPCs (2-4 NPCs).",
-  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Needs Actions For Mantella and OStim.",
+  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Handled by this module, which asks the player first; the file name stays so the Community Resources action is replaced.",
   "key": "GroupSexWithPlayer",
   "enabled": true,
   "lw_gate": "close",
@@ -25,7 +25,7 @@
   "required": [
     "source"
   ],
-  "prompt": "CRITICAL SYSTEM COMMAND - GROUP ANIMATION ENGINE TRIGGER:\n\nThis tool executes the group sex animation engine. This is NOT for ongoing roleplay.\n\nEXECUTION RULES:\n- INITIATION ONLY: Fire this tool ONLY IF the player explicitly inputs an event log stating that group sex is starting or beginning (e.g., 'Group sex begins', 'Player starts an orgy with NPC1 and NPC2').\n- CONSECUTIVE OVERRIDE: You may fire this tool consecutively in the same conversation ONLY IF the player explicitly inputs another event log to start/repeat the action.\n- IGNORE CONTEXT: DO NOT fire this tool for ongoing contextual narrative events (e.g., 'Player fucks NPC1 while NPC2 watches'). These are for context only.\n- PARTICIPANTS: Include all mentioned NPCs (2-4 max) in the source array.\n\nIf the player explicitly initiates the start of group sex, begin your response with '{key}:'.",
+  "prompt": "ANIMATION TRIGGER: starts a group sex scene with the player and two or more NPCs. Use it when the player clearly asks for group sex now or clearly agrees to it, or when an event says sex is starting. The player then answers a yes or no box, so a clear yes in conversation is enough. Do not use it for flirting, for talk about sex some other time, or while a scene is already running.\n\nIf it applies, begin your response with '{key}:'.",
   "allowed_games": [
     "skyrim"
   ],

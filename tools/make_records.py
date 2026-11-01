@@ -8,14 +8,15 @@ G = [('000800', 'MAE_LiveSceneLines', 'GlobalShort', 1), ('000801', 'MAE_LiveSce
      ('000804', 'MAE_BystanderArousalChance', 'GlobalFloat', 0.25), ('000805', 'MAE_FlowsEnabled', 'GlobalShort', 1),
      ('000806', 'MAE_FlowFinishExcitement', 'GlobalFloat', 90), ('000807', 'MAE_TalkBandChance', 'GlobalFloat', 0.5),
      ('000808', 'MAE_TalkGap', 'GlobalFloat', 40), ('000809', 'MAE_DirtyTalk', 'GlobalShort', 1),
-     ('00080B', 'MAE_NotifyScene', 'GlobalShort', 0), ('000811', 'MAE_TestMode', 'GlobalShort', 0)]
+     ('00080B', 'MAE_NotifyScene', 'GlobalShort', 0), ('000811', 'MAE_TestMode', 'GlobalShort', 0), ('000812', 'MAE_AskBeforeScene', 'GlobalShort', 1)]
 # Temperament, hotkey and setup live in the Integration Hub (MLW_*); 0x80A, 0x80C-0x810 stay unused.
 gid = {n: f for f, n, _, _ in G}
 Q = {'000820': ('MAE_QuestLive', 'MAE_Live', 'Mantella Living World - OStim live lines'),
      '000821': ('MAE_QuestBystander', 'MAE_Bystander', 'Mantella Living World - OStim bystanders'),
      '000822': ('MAE_QuestFlows', 'MAE_Flows', 'Mantella Living World - OStim scene flows'),
      '000823': ('MAE_QuestPositions', 'MAE_Positions', 'Mantella Living World - OStim positions'),
-     '000824': ('MAE_QuestSetup', 'MAE_Setup', 'Mantella Living World - OStim flow notices')}
+     '000824': ('MAE_QuestSetup', 'MAE_Setup', 'Mantella Living World - OStim flow notices'),
+     '000825': ('MAE_QuestAsk', 'MAE_Ask', 'Mantella Living World - OStim scene requests')}
 qid = {v[1]: k for k, v in Q.items()}
 PROPS = {
     'MAE_Live': [('Bystander', qid['MAE_Bystander'])] + [(g, gid[g]) for g in
@@ -24,6 +25,7 @@ PROPS = {
     'MAE_Flows': [(g, gid[g]) for g in ['MAE_FlowFinishExcitement', 'MAE_FlowsEnabled', 'MAE_NotifyScene', 'MAE_TestMode']] + [('Positions', qid['MAE_Positions'])],
     'MAE_Positions': [('Flows', qid['MAE_Flows'])],
     'MAE_Setup': [('Flows', qid['MAE_Flows']), ('MAE_FlowsEnabled', gid['MAE_FlowsEnabled'])],
+    'MAE_Ask': [('Positions', qid['MAE_Positions'])] + [(g, gid[g]) for g in ['MAE_AskBeforeScene', 'MAE_TestMode']],
 }
 
 
@@ -51,7 +53,8 @@ def g(n):
 
 
 S = [
-    {'name': 'Scene flows', 'tooltip': 'Build scenes from your animation packs (needs Build Flows.cmd).', 'type': 'toggle', 'defaultValue': True, 'variable': g('MAE_FlowsEnabled')},
+    {'name': 'Ask before a scene', 'tooltip': 'When an NPC starts a scene with you, a box asks Yes, No or Skip. Skip fades to black and counts as done. Off: scenes start straight away.', 'type': 'toggle', 'defaultValue': True, 'variable': g('MAE_AskBeforeScene')},
+    {'name': 'Scene flows', 'tooltip': 'Build scenes from your animation packs (needs Build Flows.cmd). Off: every scene is plain OStim. On: pick a scene in the menu and the flow steps back for that scene.', 'type': 'toggle', 'defaultValue': True, 'variable': g('MAE_FlowsEnabled')},
     {'name': 'Finish at excitement', 'tooltip': "A pack's finish scene starts when the man's excitement reaches this.", 'type': 'slider', 'defaultValue': 90, 'valueStep': 5, 'minValue': 50, 'maxValue': 100, 'variable': g('MAE_FlowFinishExcitement')},
     {'name': 'Scene messages', 'tooltip': 'Corner messages when a new animation set starts or a position is requested.', 'type': 'toggle', 'defaultValue': False, 'variable': g('MAE_NotifyScene')},
     {'name': 'Live scene lines', 'tooltip': 'Tell Mantella about position changes, pace and climaxes during scenes.', 'type': 'toggle', 'defaultValue': True, 'variable': g('MAE_LiveSceneLines')},

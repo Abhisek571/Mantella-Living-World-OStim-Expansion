@@ -10,6 +10,8 @@ endFunction
 Function sendRequestForPlayerInput(string playerInput, bool updateContext)
 EndFunction
 
+Actor Function GetActorByName(string actorName)
+EndFunction
 int Function CountActorsInConversation()
 EndFunction
 Actor Function GetActorInConversationByIndex(int indexOfActor)

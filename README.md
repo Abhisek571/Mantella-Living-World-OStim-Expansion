@@ -4,7 +4,8 @@ Mantella NPCs who live through OStim scenes with you. A module of [Mantella Livi
 
 | Feature | What it does |
 |---|---|
-| Scene flows | Your own animation packs are built into chains of positions. A scene moves on by itself, about 25 seconds per stage, and holds on the last position until the finish or a climax. Only your two-person scenes with an opposite-sex partner. Big-guy, femdom, futa and aggressive sets, and sets such as tied, choke, sleeping or slave, are left out |
+| Scene flows | Your own animation packs are built into chains of positions. A scene moves on by itself, about 25 seconds per stage, and holds on the last position until the finish or a climax. Pick a scene in OStim's menu at any time and the flow steps back for that scene. Only your two-person scenes with an opposite-sex partner. Big-guy, femdom, futa and aggressive sets, and sets such as tied, choke, sleeping or slave, are left out |
+| Ask first | When an NPC starts a scene with you, a box asks Yes, No or Skip. Skip fades to black, half an hour passes, and it counts as done: Mantella hears it, arousal and climax counts move. Lover's Ledger and favourite positions don't count a skipped scene. No Skip in combat. Turn the box off with "Ask before a scene" in the MCM |
 | Scene talk | Your partner reacts and talks as the scene goes, and can ask for a change of position (only during sex with you). Talk chance and the gap between spoken lines are set in the MCM. The "Live scene lines" toggle turns off all live scene lines. Shy, openly excited or dirty styling needs the Arousal module |
 | Favourite positions | Each close partner is asked once to rate positions from her personality, then up to three favourites are kept from your scenes and told to Mantella when she joins a conversation. Favourites are picked more often |
 | Bystanders | After a climax, people in the conversation who are not in the scene may comment. Nobody in any OStim scene can |
