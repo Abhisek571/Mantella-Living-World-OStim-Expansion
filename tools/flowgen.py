@@ -6,10 +6,11 @@ only describes the building blocks: each set's pose, intensity, furniture and th
 often each pose naturally leads to each other pose across all packs, and every scene's pose. The catalogue is JSON
 read through PapyrusUtil JsonUtil (lowercase keys).
 
-usage: py -3 flowgen.py --mo2 "<Mod Organizer 2 folder>" --profile Default --out "<mod folder>"
+usage: py -3 flowgen.py --auto                         (what Build Flows.cmd runs: finds MO2 itself, else Vortex)
+       py -3 flowgen.py --mo2 "<folder with ModOrganizer.ini, or with mods and profiles>" [--profile Default] [--out "<mod folder>"]
        py -3 flowgen.py --data auto --zip "<file.zip>"     (Vortex: reads the game's Data folder, packs a zip to install)
 """
-import argparse, collections, json, os, re, shutil, sys, tempfile, zipfile
+import argparse, collections, glob, json, os, re, shutil, sys, tempfile, zipfile
 
 CLIMAX_ACTIONS = {'facial', 'cumonbelly', 'cumonbutt', 'cumonchest', 'cumonvulva', 'cumshot', 'ejaculation', 'creampie',
                   'analcreampie', 'cuminmouth', 'cumonface', 'cumonfeet', 'cumonback', 'cumonbreasts'}
@@ -31,6 +32,8 @@ EXCLUDE_WORDS = ['test', 'tied', 'choke', 'riekling', 'creature', 'rune', 'spear
                  # never: anything framed around minors
                  'shota', 'loli', 'child', 'kid', 'teen', 'underage', 'young']
 SEQ_PREFIX = 'MAEF'
+FLOWS_MOD = 'Mantella Living World - OStim Expansion - Flows'
+INI_KEYS = ('selected_profile', 'base_directory', 'mod_directory', 'profiles_directory')
 
 
 def load_json(path):
@@ -43,17 +46,116 @@ def load_json(path):
         return json.loads(text)
 
 
-def enabled_mods(mo2, profile):
-    lines = open(os.path.join(mo2, 'profiles', profile, 'modlist.txt'), encoding='utf-8').read().splitlines()
+def qt_value(raw):
+    """A value from MO2's Qt ini. @ByteArray(...) holds UTF-8 bytes with \\xHH escapes; plain strings use \\xHHHH."""
+    value = raw.strip()
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        value = value[1:-1]
+    wrapped = re.fullmatch(r'@ByteArray\((.*)\)', value)
+    if wrapped:
+        bytes_ = re.sub(rb'\\(x[0-9a-fA-F]{1,2}|.)', lambda m: bytes([int(m.group(1)[1:], 16)]) if m.group(1)[:1] == b'x' and len(m.group(1)) > 1 else m.group(1),
+                        wrapped.group(1).encode('utf-8'))
+        return bytes_.decode('utf-8', 'replace')
+    return re.sub(r'\\(x[0-9a-fA-F]+|.)', lambda m: chr(int(m.group(1)[1:], 16)) if m.group(1)[0] == 'x' and len(m.group(1)) > 1 else m.group(1), value)
+
+
+def read_instance(ini):
+    """Where an MO2 instance keeps its mods and profiles, from its ModOrganizer.ini (they can be anywhere)."""
+    values = {}
+    with open(ini, encoding='utf-8', errors='replace') as f:
+        for line in f:
+            key, eq, raw = line.partition('=')
+            key = key.strip().lower()
+            if eq and key in INI_KEYS and key not in values:
+                values[key] = qt_value(raw)
+    folder = os.path.dirname(os.path.abspath(ini))
+    base = os.path.join(folder, values.get('base_directory') or '.')
+
+    def where(key, default):
+        return os.path.normpath(os.path.join(base, (values.get(key) or default).replace('%BASE_DIR%', base)))
+
+    return {'mods': where('mod_directory', 'mods'), 'profiles': where('profiles_directory', 'profiles'),
+            'profile': values.get('selected_profile') or '', 'name': folder}
+
+
+def same_folder(a, b):
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
+
+
+def find_mo2(mods_here):
+    """The instance whose mods folder holds this tool: one in a folder above it, or a global one in AppData."""
+    inis, up = [], os.path.abspath(mods_here)
+    while True:
+        inis.append(os.path.join(up, 'ModOrganizer.ini'))
+        if os.path.dirname(up) == up:
+            break
+        up = os.path.dirname(up)
+    inis += glob.glob(os.path.join(glob.escape(os.environ.get('LOCALAPPDATA', '')), 'ModOrganizer', '*', 'ModOrganizer.ini'))
+    for ini in inis:
+        if os.path.isfile(ini):
+            instance = read_instance(ini)
+            if same_folder(instance['mods'], mods_here):
+                return instance
+    return None
+
+
+def ask_for_mo2():
+    """Nothing found. Returns the instance the player points at, or None for Vortex (just Enter)."""
+    print("Could not find Mod Organizer 2 from this mod's folder (its mods folder may be set somewhere else).")
+    print('Paste the folder that holds ModOrganizer.ini and press Enter. On Vortex, just press Enter.')
+    try:
+        answer = input('> ').strip().strip('"')
+    except EOFError:
+        raise SystemExit('No folder given. Run Build Flows again from a normal window, or use: --mo2 "<folder with ModOrganizer.ini>"')
+    if not answer:
+        return None
+    ini = answer if os.path.isfile(answer) else os.path.join(answer, 'ModOrganizer.ini')
+    if not os.path.isfile(ini):
+        raise SystemExit(f'No ModOrganizer.ini found in: {answer}')
+    return read_instance(ini)
+
+
+def auto_instance():
+    """Build Flows.cmd: MO2 if this tool is in an MO2 mods folder, None (Vortex) if it was deployed to Data."""
+    mod = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    instance = find_mo2(os.path.dirname(mod))
+    if instance:
+        return instance
+    if os.path.basename(mod).lower() == 'data':
+        return None
+    return ask_for_mo2()
+
+
+def pick_profile(instance, wanted):
+    """The profile to read: the one asked for, else MO2's selected one, else Default, else the only one there is."""
+    profiles = instance['profiles']
+    has = lambda name: os.path.isfile(os.path.join(profiles, name, 'modlist.txt'))
+    if wanted:
+        if has(wanted):
+            return wanted
+        raise SystemExit(f'No profile "{wanted}" with a modlist.txt in: {profiles}')
+    found = sorted(os.listdir(profiles)) if os.path.isdir(profiles) else []
+    found = [name for name in found if has(name)]
+    for name in (instance['profile'], 'Default'):
+        if name and has(name):
+            return name
+    if len(found) == 1:
+        return found[0]
+    raise SystemExit(f'Could not tell which MO2 profile to use in: {profiles}\nProfiles there: {", ".join(found) or "none"}\n'
+                     'Run flowgen.py with --mo2 "<folder with ModOrganizer.ini>" --profile "<name>"')
+
+
+def enabled_mods(profiles, profile):
+    lines = open(os.path.join(profiles, profile, 'modlist.txt'), encoding='utf-8-sig').read().splitlines()
     return [l[1:].strip() for l in lines if l.startswith('+')]  # highest priority first
 
 
-def read_scenes(mo2, mods, skip_mod):
+def read_scenes(mods_dir, mods, skip_mod):
     scenes, owner = {}, {}
     for mod in reversed(mods):  # lowest priority first, so winners overwrite
         if mod == skip_mod:
             continue
-        folder = os.path.join(mo2, 'mods', mod, 'SKSE', 'Plugins', 'OStim', 'scenes')
+        folder = os.path.join(mods_dir, mod, 'SKSE', 'Plugins', 'OStim', 'scenes')
         if not os.path.isdir(folder):
             continue
         for root, _, files in os.walk(folder):
@@ -302,16 +404,28 @@ def short_pack(pack):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--mo2', help='Mod Organizer 2 instance folder')
-    ap.add_argument('--profile', default='Default')
+    ap.add_argument('--auto', action='store_true', help='find MO2 from where this tool is installed, else use Vortex mode')
+    ap.add_argument('--mo2', help='folder with ModOrganizer.ini, or with the mods and profiles folders')
+    ap.add_argument('--profile', help="MO2 profile (default: MO2's selected one)")
     ap.add_argument('--data', help='game Data folder (Vortex), or "auto" to find it')
     ap.add_argument('--out', help='mod folder to write into (sequences + catalogue)')
     ap.add_argument('--zip', help='with --data: also pack the result into this zip, to install as a mod')
     ap.add_argument('--seconds', type=float, default=25.0, help='seconds per stage')
     args = ap.parse_args()
 
-    if bool(args.mo2) == bool(args.data):
-        ap.error('give either --mo2 or --data')
+    if bool(args.auto) + bool(args.mo2) + bool(args.data) != 1:
+        ap.error('give one of --auto, --mo2 or --data')
+    instance = None
+    if args.auto:
+        instance = auto_instance()
+        if not instance:
+            print("No Mod Organizer 2 found: using the game's Data folder (Vortex). Deploy your mods in Vortex first.")
+            args.data = 'auto'
+            args.zip = args.zip or os.path.join(os.path.expanduser('~'), 'Documents', 'Mantella Living World', FLOWS_MOD + '.zip')
+    elif args.mo2:
+        ini = os.path.join(args.mo2, 'ModOrganizer.ini')
+        instance = read_instance(ini) if os.path.isfile(ini) else {
+            'mods': os.path.join(args.mo2, 'mods'), 'profiles': os.path.join(args.mo2, 'profiles'), 'profile': '', 'name': args.mo2}
     if args.data:
         data = find_data() if args.data == 'auto' else args.data
         if not data or not os.path.isdir(os.path.join(data, 'SKSE', 'Plugins', 'OStim', 'scenes')):
@@ -321,20 +435,19 @@ def main():
             args.out = tempfile.mkdtemp(prefix='mlw_flows_')
         print(f'Reading OStim packs from {data}')
         lib = Library(*read_scenes_data(data))
+        looked_in = data
     else:
-        if not args.out:
-            ap.error('--out is required with --mo2')
+        if not os.path.isdir(instance['mods']):
+            raise SystemExit(f'MO2 mods folder not found: {instance["mods"]}')
+        profile = pick_profile(instance, args.profile)
+        print(f'Mod Organizer 2: {instance["name"]}\nMods: {instance["mods"]}\nProfile: {profile}')
+        args.out = args.out or os.path.join(instance['mods'], FLOWS_MOD)
         out_mod = os.path.basename(os.path.normpath(args.out))
-        mods = enabled_mods(args.mo2, args.profile)
-        lib = Library(*read_scenes(args.mo2, mods, skip_mod=out_mod))
+        mods = enabled_mods(instance['profiles'], profile)
+        lib = Library(*read_scenes(instance['mods'], mods, skip_mod=out_mod))
+        looked_in = f'the {len(mods)} mods enabled in profile "{profile}"'
     moves = natural_moves(lib)
     packs = sorted({lib.owner[s] for s in lib.mf})
-
-    seq_dir = os.path.join(args.out, 'SKSE', 'Plugins', 'OStim', 'sequences')
-    cat_dir = os.path.join(args.out, 'SKSE', 'Plugins', 'StorageUtilData', 'MantellaAdultExpansion')
-    os.makedirs(seq_dir, exist_ok=True); os.makedirs(cat_dir, exist_ok=True)
-    for f in os.listdir(seq_dir):  # previous build
-        if f.startswith(SEQ_PREFIX) and f.endswith('.json'): os.remove(os.path.join(seq_dir, f))
 
     all_sets, pack_names, pack_start, pack_count = [], [], [], []
     for pack in packs:
@@ -345,6 +458,14 @@ def main():
             s['seq'] = f'{SEQ_PREFIX}_S{len(all_sets) + 1}'
             s['packIndex'] = len(pack_names) - 1
             all_sets.append(s)
+    if not all_sets:
+        raise SystemExit(f'No usable two-person OStim scenes found in {looked_in}. Flows were not built: '
+                         'install and enable at least one OStim animation pack, then run this again.')
+    seq_dir = os.path.join(args.out, 'SKSE', 'Plugins', 'OStim', 'sequences')
+    cat_dir = os.path.join(args.out, 'SKSE', 'Plugins', 'StorageUtilData', 'MantellaAdultExpansion')
+    os.makedirs(seq_dir, exist_ok=True); os.makedirs(cat_dir, exist_ok=True)
+    for f in os.listdir(seq_dir):  # previous build
+        if f.startswith(SEQ_PREFIX) and f.endswith('.json'): os.remove(os.path.join(seq_dir, f))
     for s in all_sets:
         json.dump(sequence(s['stages'], args.seconds), open(os.path.join(seq_dir, s['seq'] + '.json'), 'w', encoding='utf-8'), indent=1)
 
@@ -401,6 +522,10 @@ def main():
                     z.write(full, os.path.relpath(full, args.out))
         shutil.rmtree(args.out, ignore_errors=True)
         print(f'Packed for Vortex: {args.zip}')
+        print('Done. In Vortex: Mods, Install From File, pick that zip, then enable it and deploy. '
+              'After adding or removing animation packs, run this again and reinstall the zip.')
+    elif instance:
+        print(f'Done. Refresh Mod Organizer 2 and enable "{out_mod}".')
 
 
 if __name__ == '__main__':

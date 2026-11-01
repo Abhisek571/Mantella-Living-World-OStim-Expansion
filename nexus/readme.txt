@@ -1,5 +1,5 @@
 Mantella Living World - OStim Expansion
-Version 1.0.0 by itsPigeon2000
+Version 1.0.1 by itsPigeon2000
 
 Mantella NPCs who live through OStim scenes with you: scenes that flow on their own from your animation packs, partners who react and talk, bystanders who comment, favourite positions that are remembered.
 
