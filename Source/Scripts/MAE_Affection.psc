@@ -423,8 +423,9 @@ bool Function RequestScene(Actor akNpc, string asKind, string asWho, float now, 
 		Log("REFUSED|still starting")
 		Return false
 	ElseIf started && akNpc == partner && OThread.IsRunning(thread) && OThread.HasMetadata(thread, METADATA)
-		; the same checks as a new scene: a child may have joined or combat started since this one began
-		If MAE_Text.CannotConsent(akNpc) || !MAE_Text.PlayerCanConsent() || MAE_Text.MinorInTalk()
+		; the checks of a new scene that can change while this one runs: a child may have joined or a fight started.
+		; Not CannotConsent: it also refuses anyone already in an OStim scene, which both are here (seen live).
+		If MAE_Text.MinorInTalk() || !MAE_Text.PlayerCanConsent() || akNpc.IsInCombat() || akNpc.IsUnconscious() || akNpc.IsBleedingOut()
 			Log("REFUSED|cannot agree now, or a child is in the conversation|switch")
 			NoScene(akNpc, asKind)
 			Return false

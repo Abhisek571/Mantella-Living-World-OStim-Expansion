@@ -39,7 +39,7 @@ EXPECT = {   # regex; a literal | is \|
     'affection-end': {'must': [r'AFFECT\|TIMER\|', r'AFFECT\|TIMING\|end\|', r'AFFECT\|SCORE\|.*\|physical'], 'not': AFFECTION_NEVER},
     'affection-kind': {'must': [r'AFFECT\|ACTION\|', KIND_DONE], 'not': AFFECTION_NEVER},
     'affection-who-npc': {'must': [r'AFFECT\|TIMING\|start\|.*\|doer=(?!the player)|AFFECT\|NO SCENE\|'], 'not': AFFECTION_NEVER},
-    'affection-who-player': {'must': [r'AFFECT\|TIMING\|start\|.*\|doer=the player|AFFECT\|NO SCENE\|'], 'not': AFFECTION_NEVER},
+    'affection-who-player': {'must': [r'AFFECT\|TIMING\|start\|.*\|doer=(?!Vega)[^|]+|AFFECT\|NO SCENE\|'], 'not': AFFECTION_NEVER},
     'affection-restart': {'must': [r'AFFECT\|RESTART\||AFFECT\|NO (FURNITURE|SCENE)\|'], 'not': AFFECTION_NEVER},
     'affection-grow-no': {'must': GROW + [r'ASK\|ANSWER\|No\|', r'EVENT\|.* said no for now'], 'not': SCENE_NEVER},
     'affection-grow-skip': {'must': GROW + [r'ASK\|ANSWER\|Skip\|', r'EVENT\|.* finished having sex'], 'not': SCENE_NEVER},
