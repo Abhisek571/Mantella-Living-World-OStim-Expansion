@@ -423,6 +423,12 @@ bool Function RequestScene(Actor akNpc, string asKind, string asWho, float now, 
 		Log("REFUSED|still starting")
 		Return false
 	ElseIf started && akNpc == partner && OThread.IsRunning(thread) && OThread.HasMetadata(thread, METADATA)
+		; the same checks as a new scene: a child may have joined or combat started since this one began
+		If MAE_Text.CannotConsent(akNpc) || !MAE_Text.PlayerCanConsent() || MAE_Text.MinorInTalk()
+			Log("REFUSED|cannot agree now, or a child is in the conversation|switch")
+			NoScene(akNpc, asKind)
+			Return false
+		EndIf
 		Switch(asKind, asWho)
 		Return false
 	EndIf
