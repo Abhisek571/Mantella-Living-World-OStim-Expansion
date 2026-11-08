@@ -8,6 +8,14 @@ import json, re, sys
 
 ALLOWED_THEMES = ('normal|-|-|neutral', 'normal|-|-|romantic')
 CHAIN_SETS, MAX_POSE_PER_CHAIN = 4, 2
+# An affection thread: nothing of the sex scene's machinery may react, and the picker stays shut.
+SCENE_NEVER = [r'FLOW\|(SET|BEGIN|CLIMAX|END)', r'EVENT\|.* have started: ', r'EVENT\|.* have moved on to ', r'EVENT\|.* just climaxed',
+               r'EVENT\|.* have not been rated yet', r'test\|picker opened']
+AFFECTION_NEVER = SCENE_NEVER + [r'ASK\|ANSWER', r'EVENT\|.* finished having sex']
+# A kind either played (start, timer, end, score) or was refused with a line for Mantella.
+KIND_DONE = r'AFFECT\|(TIMING\|end\||NO SCENE\||NO FURNITURE\|)'
+GROW = [r'AFFECT\|GROW\|', r'EVENT\|.* needs a moment first', r'ASK\|AFTER AFFECTION\|', r'AFFECT\|TIMING\|end\|']
+RESTART_GAP = 5.0
 
 # What a scenario must (and must not) log, by its MAE_Test.Begin name.
 EXPECT = {   # regex; a literal | is \|
@@ -24,6 +32,21 @@ EXPECT = {   # regex; a literal | is \|
     'unrated-quiet': {'must': [], 'not': [r'EVENT\|.* have not been rated yet\.']},
     'summary': {'must': [r'END\|', r'EVENT\|.* finished having sex'], 'not': []},
     'bystander': {'must': [r'EVENT\|.* watching from the side'], 'not': []},
+    'affection-gate': {'must': [r'AFFECT\|GATE\|[^|]*\|1\|.'], 'not': []},
+    'affection-start': {'must': [r'AFFECT\|ACTION\|', r'AFFECT\|CALL\|', r'AFFECT\|TIMING\|start\|', r'EVENT\|(?!There is no)'], 'not': AFFECTION_NEVER},
+    'affection-guards': {'must': [r'EVENT\|There is no way to do cowgirl', r'AFFECT\|REFUSED\|someone is in a scene'], 'not': AFFECTION_NEVER},
+    'affection-switch': {'must': [r'AFFECT\|SWITCH\|'], 'not': AFFECTION_NEVER + [r'AFFECT\|RESTART\|']},
+    'affection-end': {'must': [r'AFFECT\|TIMER\|', r'AFFECT\|TIMING\|end\|', r'AFFECT\|SCORE\|.*\|physical'], 'not': AFFECTION_NEVER},
+    'affection-kind': {'must': [r'AFFECT\|ACTION\|', KIND_DONE], 'not': AFFECTION_NEVER},
+    'affection-who-npc': {'must': [r'AFFECT\|TIMING\|start\|.*\|doer=(?!the player)|AFFECT\|NO SCENE\|'], 'not': AFFECTION_NEVER},
+    'affection-who-player': {'must': [r'AFFECT\|TIMING\|start\|.*\|doer=the player|AFFECT\|NO SCENE\|'], 'not': AFFECTION_NEVER},
+    'affection-restart': {'must': [r'AFFECT\|RESTART\||AFFECT\|NO (FURNITURE|SCENE)\|'], 'not': AFFECTION_NEVER},
+    'affection-grow-no': {'must': GROW + [r'ASK\|ANSWER\|No\|', r'EVENT\|.* said no for now'], 'not': SCENE_NEVER},
+    'affection-grow-skip': {'must': GROW + [r'ASK\|ANSWER\|Skip\|', r'EVENT\|.* finished having sex'], 'not': SCENE_NEVER},
+    'affection-talk-ended': {'must': [r'AFFECT\|STOP\|talk ended', r'AFFECT\|TIMING\|end\|'], 'not': AFFECTION_NEVER},
+    'affection-talk-ended-early': {'must': [r'AFFECT\|STOP\|ended before the start', r'AFFECT\|TIMING\|end\|'],
+                                   'not': AFFECTION_NEVER + [r'AFFECT\|SCORE\|']},
+    'affection-no-scene': {'must': [r'AFFECT\|NO SCENE\|', r'EVENT\|There is no way to do that here'], 'not': [r'AFFECT\|CALL\|']},
 }
 
 
@@ -126,6 +149,14 @@ def main():
                     if chain > CHAIN_SETS: bad.append(f'{where}: chain at {chain} sets')
                 if why != 'finish':
                     prev = s   # a finish may be borrowed from another pack; the chain goes on from its own set
+        for line in lines:
+            gap = re.search(r'(AFFECT\|CALL|ASK\|AFTER AFFECTION)\|.*\|sinceEnd=([-\d.]+)', line)
+            if gap and float(gap.group(2)) < RESTART_GAP:
+                bad.append(f'{name}: {gap.group(1)} {gap.group(2)} s after the last end')
+        # A played affection scene ends on its timer (unless something else ended it) and always scores.
+        if any(matches(l, r'AFFECT\|TIMING\|end\|') for l in lines) and any(matches(l, r'AFFECT\|TIMING\|start\|') for l in lines) \
+                and not any(matches(l, r'AFFECT\|STOP\|ended before') for l in lines) and not any(matches(l, r'AFFECT\|SCORE\|') for l in lines):
+            bad.append(f'{name}: affection scene ended without a score event')
         exp = EXPECT.get(name.split(':')[0], {'must': [], 'not': []})
         for pat in exp['must']:
             if not any(matches(l, pat) for l in lines):

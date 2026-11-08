@@ -58,6 +58,8 @@ bool finishPlayed
 bool finishSearched
 bool climaxPending
 float climaxAt
+; Any climax in the scene: OStim's own climax transition right after it is not the player navigating.
+float lastClimaxAt = -1000.0
 ; The player navigated by hand: nothing automatic touches this scene any more.
 bool playerControl = false
 string[] favourites
@@ -72,6 +74,20 @@ Function Register()
 	RegisterForModEvent("ostim_thread_scenechanged", "OnSceneChanged")
 	RegisterForModEvent("ostim_actor_orgasm", "OnOrgasm")
 	RegisterForModEvent("ostim_thread_end", "OnThreadEnd")
+	RegisterForMenu("Loading Menu")
+EndFunction
+
+; A save loaded mid-scene never sends the scene's end: forget it, or the next thread with the same id looks like ours.
+Event OnMenuClose(string asMenuName)
+	If !OActor.IsInOStim(PlayerRef)
+		ForgetScene()
+	EndIf
+EndEvent
+
+Function ForgetScene()
+	sceneThread = -1
+	curSet = -1
+	partner = None
 EndFunction
 
 bool Function Built()
@@ -89,6 +105,9 @@ Event OnThreadStart(string asEventName, string asArg, float afThreadID, Form akS
 	EndIf
 	Actor other = PartnerOf(threadID)
 	If !other
+		If threadID == sceneThread
+			ForgetScene()
+		EndIf
 		Return
 	EndIf
 	If !Built()
@@ -104,6 +123,8 @@ Event OnThreadStart(string asEventName, string asArg, float afThreadID, Form akS
 EndEvent
 
 Function BeginScene(int aiThreadID, Actor akPartner)
+	; Saves made before the Loading Menu reset existed never ran OnInit again.
+	Register()
 	sceneThread = aiThreadID
 	partner = akPartner
 	curSet = -1
@@ -117,6 +138,7 @@ Function BeginScene(int aiThreadID, Actor akPartner)
 	playerControl = false
 	finishPlayed = false
 	climaxPending = false
+	lastClimaxAt = -1000.0
 	favourites = new string[3]
 	If Positions
 		favourites = Positions.Favourites(akPartner)
@@ -132,6 +154,11 @@ Event OnSceneChanged(string asEventName, string asArg, float afThreadID, Form ak
 	If sceneID == "" || OMetadata.IsTransition(sceneID)
 		Return
 	EndIf
+	float sinceClimax = Utility.GetCurrentRealTime() - lastClimaxAt
+	If sinceClimax >= 0.0 && sinceClimax < 6.0
+		; OStim's own climax transition, not the player (a stamp from an earlier launch is ahead of now).
+		Return
+	EndIf
 	If sceneID != setScenes[stageIndex] && (!prevScenes || prevScenes.Find(sceneID) < 0)
 		; The player navigated somewhere else: hand the scene back to them.
 		playerControl = true
@@ -140,6 +167,9 @@ Event OnSceneChanged(string asEventName, string asArg, float afThreadID, Form ak
 EndEvent
 
 Event OnOrgasm(string asEventName, string asSceneID, float afThreadID, Form akSender)
+	If (afThreadID as int) == sceneThread
+		lastClimaxAt = Utility.GetCurrentRealTime()
+	EndIf
 	If (afThreadID as int) == sceneThread && (akSender as Actor) == partner && !playerControl && curSet >= 0
 		climaxPending = true
 		climaxAt = Utility.GetCurrentRealTime()
@@ -178,10 +208,13 @@ Event OnUpdate()
 	EndIf
 	If climaxPending && now - climaxAt >= SATISFIED_CHECK_DELAY
 		climaxPending = false
-		If NotSatisfied(partner)
+		; Only a woman partner's own satisfaction restarts a chain. A man's climax (a female player) is the end of
+		; the flow: no new chain, and after the finish set it holds there.
+		If MAE_FlowsEnabled.GetValueInt() == 1 && partner && partner.GetLeveledActorBase().GetSex() == 1 && NotSatisfied(partner)
 			; A new chain from the same pack, free to restart at oral/manual intensity.
 			chainSets = 0
 			poseCount = Utility.CreateIntArray(poseCount.Length)
+			usedSets = ","
 			finishPlayed = false
 			PlaySet(PickNext(1), "new chain")
 		EndIf
@@ -497,11 +530,11 @@ bool Function PlayPose(string asPose)
 	If pose < 0
 		Return false
 	EndIf
+	Actor other = PartnerOf(threadID)
+	If !other
+		Return false
+	EndIf
 	If threadID != sceneThread
-		Actor other = PartnerOf(threadID)
-		If !other
-			Return false
-		EndIf
 		BeginScene(threadID, other)
 	EndIf
 	string furn = FurnitureFamily(OThread.GetFurnitureType(threadID))
@@ -521,6 +554,11 @@ bool Function PlayPose(string asPose)
 	finishPlayed = false
 	Log("REQUEST|" + asPose)
 	PlaySet(s, "request")
+	If MAE_FlowsEnabled.GetValueInt() != 1
+		; Flows are off: the requested set plays through, nothing new is rolled after it.
+		chainSets = CHAIN_SETS
+		finishSearched = true
+	EndIf
 	Return true
 EndFunction
 
@@ -553,8 +591,12 @@ EndFunction
 ; Helpers
 ; ---------------------------------------------------------------------------
 
-; The non-player actor of a two-person thread with the player, opposite sex; None otherwise.
+; The non-player actor of a two-person thread with the player, opposite sex; None otherwise, and None for an
+; affection thread, so neither flows nor favourites touch one.
 Actor Function PartnerOf(int aiThreadID)
+	If MAE_Text.IsAffectionThread(aiThreadID)
+		Return None
+	EndIf
 	Actor[] actors = OThread.GetActors(aiThreadID)
 	If !actors || actors.Length != 2 || actors.Find(PlayerRef) < 0
 		Return None
@@ -563,7 +605,7 @@ Actor Function PartnerOf(int aiThreadID)
 	If other == PlayerRef
 		other = actors[1]
 	EndIf
-	If !other || other.GetActorBase().GetSex() == PlayerRef.GetActorBase().GetSex() || MAE_Text.IsChildActor(other)
+	If !other || other.GetLeveledActorBase().GetSex() == PlayerRef.GetLeveledActorBase().GetSex() || MAE_Text.IsChildActor(other)
 		Return None
 	EndIf
 	Return other
@@ -579,7 +621,7 @@ EndFunction
 
 ; The man of the pair: whoever a finish scene is for.
 Actor Function FinishActor()
-	If PlayerRef.GetActorBase().GetSex() == 0
+	If PlayerRef.GetLeveledActorBase().GetSex() == 0
 		Return PlayerRef
 	EndIf
 	Return partner

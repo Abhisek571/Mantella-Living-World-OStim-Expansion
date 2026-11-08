@@ -18,6 +18,8 @@ int Property SCORE_RATED = 5 AutoReadOnly
 int Property TOP = 3 AutoReadOnly
 
 int lastPose = -1
+; The scene last told that its positions are picked in OStim's own menu (once per scene).
+int toldMenuThread = -1
 
 Event OnInit()
 	Register()
@@ -132,6 +134,9 @@ Event OnNpcAdded(Form akActor)
 		Return
 	EndIf
 	Register()  ; saves made before the scene-start event existed never ran OnInit again
+	If MAE_Text.MinorInTalk()
+		Return
+	EndIf
 	string line = FavouritesLine(npc)
 	If line == "" && npc == Flows.ScenePartner()
 		line = UnratedLine(npc)
@@ -145,7 +150,7 @@ EndEvent
 ; asks when she joins, since Mantella queues events for whoever talks next.
 Event OnThreadStart(string asEventName, string asArg, float afThreadID, Form akSender)
 	Actor npc = Flows.PartnerOf(afThreadID as int)
-	If npc && Flows.Built() && InConversation(npc) && FavouritesLine(npc) == ""
+	If npc && Flows.Built() && InConversation(npc) && FavouritesLine(npc) == "" && !MAE_Text.MinorInTalk()
 		string line = UnratedLine(npc)
 		If line != ""
 			AddMantellaEvent(line)
@@ -192,6 +197,19 @@ EndEvent
 Event OnChangeAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 	string pose = Trim(SKSE_HTTP.getString(aiArguments, "position", ""))
 	If pose == ""
+		Return
+	EndIf
+	int threadID = OActor.GetThreadID(PlayerRef)
+	If threadID < 0
+		AddMantellaEvent("There is no scene going on right now, so nothing changes.")
+		Return
+	EndIf
+	; Flows play only for a two-person scene with an opposite-sex partner: the rest is OStim's own menu.
+	If !Flows.PartnerOf(threadID)
+		If toldMenuThread != threadID
+			toldMenuThread = threadID
+			AddMantellaEvent("Positions for this pair are picked in OStim's own menu, so they carry on as they were.")
+		EndIf
 		Return
 	EndIf
 	If !Flows.PlayPose(pose)

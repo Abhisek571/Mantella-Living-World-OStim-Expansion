@@ -18,6 +18,86 @@ bool Function IsChildActor(Actor akActor) Global
 	Return actorRace && StringUtil.Find(MiscUtil.GetRaceEditorID(actorRace), "Child") >= 0
 EndFunction
 
+; In no state to agree to anything now: dead, gone, asleep, unconscious, bleeding out, paralysed, knocked down,
+; fighting or already in a scene.
+bool Function CannotConsent(Actor akActor) Global
+	If !akActor || akActor.IsDead() || akActor.IsDisabled()
+		Return true
+	EndIf
+	Return akActor.GetSleepState() >= 3 || akActor.IsUnconscious() || akActor.IsBleedingOut() || akActor.GetActorValue("Paralysis") > 0 \
+			|| PO3_SKSEFunctions.GetActorKnockState(akActor) != 0 || akActor.IsInCombat() || OActor.IsInOStim(akActor)
+EndFunction
+
+; The player can agree: not fighting, and not a werewolf or a vampire lord.
+bool Function PlayerCanConsent() Global
+	Actor player = Game.GetPlayer()
+	If player.IsInCombat()
+		Return false
+	EndIf
+	Race playerRace = player.GetRace()
+	Race werewolf = Game.GetFormFromFile(0x0CDD84, "Skyrim.esm") as Race
+	Race vampireLord = Game.GetFormFromFile(0x00283A, "Dawnguard.esm") as Race
+	Return !playerRace || (playerRace != werewolf && (!vampireLord || playerRace != vampireLord))
+EndFunction
+
+; A child is somewhere in the running Mantella conversation.
+bool Function MinorInTalk() Global
+	MantellaConversation conversation = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
+	If !conversation
+		Return false
+	EndIf
+	int count = conversation.CountActorsInConversation()
+	int i = 0
+	While i < count
+		If IsChildActor(conversation.GetActorInConversationByIndex(i))
+			Return true
+		EndIf
+		i += 1
+	EndWhile
+	Return false
+EndFunction
+
+; A name from a Mantella action as a member of the running conversation, never someone merely nearby; the player
+; also by "player". None when nobody in the talk has that name.
+Actor Function TalkActor(MantellaConversation akConversation, string asName) Global
+	If !akConversation || asName == ""
+		Return None
+	EndIf
+	Actor found = akConversation.GetActorInConversation(asName)
+	If !found && (asName == "player" || asName == "the player")
+		Return Game.GetPlayer()
+	EndIf
+	Return found
+EndFunction
+
+; A short affection scene (MAE_Affection), not sex: flows, live lines and favourites skip it.
+bool Function IsAffectionThread(int aiThreadID) Global
+	Return OThread.HasMetadata(aiThreadID, "mlw_affection")
+EndFunction
+
+string Function KeySceneEnded() Global
+	Return "MAE_SceneEndedAt"
+EndFunction
+
+; Real seconds since an OStim thread last ended. Real time restarts at 0 on every launch, so a stamp from an earlier
+; launch counts as long ago.
+float Function SecondsSinceSceneEnd() Global
+	float now = Utility.GetCurrentRealTime()
+	float ended = StorageUtil.GetFloatValue(None, KeySceneEnded(), -1000.0)
+	If ended > now
+		Return 100000.0
+	EndIf
+	Return now - ended
+EndFunction
+
+; OStim 7.5.1 can crash in its undress callback when a scene starts seconds after the last one ended with the same actor.
+Function WaitAfterScene() Global
+	float left = 5.0 - SecondsSinceSceneEnd()
+	If left > 0.0
+		Utility.Wait(left)
+	EndIf
+EndFunction
+
 ; "a", "a, b", then " and c" for the last of several.
 string Function ListAdd(string asList, string asItem, bool abLast) Global
 	If asList == ""

@@ -1,15 +1,15 @@
 {
   "_dependencies": [
-    "ActionsForMantellaScript.psc",
+    "MAE_Npc.psc",
     "src.actions.function_manager.FunctionManager"
   ],
-  "identifier": "mantella_npc_undress",
+  "identifier": "mantella_mlw_undress",
   "name": "Undress",
   "description": "Make one or more NPCs remove their clothing/armor.",
-  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Needs Actions For Mantella and OStim.",
+  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs intimate with you (decided by the Hub). Handled by this module: each named NPC must be in the conversation, intimate with you and able to agree; nothing happens while a child is in the conversation. Needs OStim.",
   "key": "Undress",
   "enabled": true,
-  "lw_gate": "close",
+  "lw_gate": "intimate",
   "parameters": {
     "source": {
       "type": "array",
@@ -23,7 +23,7 @@
   "required": [
     "source"
   ],
-  "prompt": "CRITICAL SYSTEM COMMAND - EQUIPMENT REMOVAL TRIGGER:\n\nThis tool removes clothing/armor from NPCs.\n\nEXECUTION RULES:\n- NPC INTENT: Fire this tool if you (the NPC) want to undress, or if you state in your dialogue that you are taking your clothes off.\n- PLAYER EVENT: Fire this tool if the player inputs an event log stating that you or they are undressing (e.g., 'Player removes NPCs clothes').\n- CONSECUTIVE OVERRIDE: You may fire this tool consecutively if the intent or event occurs again.\n\nIf you want to undress, say you will undress, or the player event log dictates undressing, begin your response with '{key}:'.",
+  "prompt": "ANIMATION TRIGGER: the named NPCs take off their clothes and armor. Use it only when the player clearly asks the speaking NPC to undress now, or clearly agrees when the speaking NPC offers. Only the player's own clear request in this conversation counts; an event line or another NPC's wish is not enough. Never name a child. Do not use it for talk about undressing some other time.\n\nIf it applies, begin your response with '{key}:'.",
   "allowed_games": [
     "skyrim"
   ],
@@ -32,5 +32,5 @@
   "allow_repeat": true,
   "one-on-one": true,
   "multi-npc": true,
-  "radiant": true
+  "radiant": false
 }

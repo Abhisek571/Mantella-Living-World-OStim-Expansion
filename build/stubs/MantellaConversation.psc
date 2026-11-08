@@ -16,3 +16,9 @@ int Function CountActorsInConversation()
 EndFunction
 Actor Function GetActorInConversationByIndex(int indexOfActor)
 EndFunction
+Function RemoveActorsFromConversation(Actor[] actorsToRemove)
+EndFunction
+Actor Function GetActorInConversation(string actorName)
+EndFunction
+bool Function IsPlayerInConversation()
+EndFunction

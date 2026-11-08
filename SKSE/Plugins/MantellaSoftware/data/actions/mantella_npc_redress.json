@@ -1,12 +1,12 @@
 {
     "_dependencies": [
-        "ActionsForMantellaScript.psc",
+        "MAE_Npc.psc",
         "src.actions.function_manager.FunctionManager"
     ],
-    "identifier": "mantella_npc_redress",
+    "identifier": "mantella_mlw_redress",
     "name": "Redress",
     "description": "Make one or more NPCs put their clothing/armor back on.",
-    "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Needs Actions For Mantella and OStim.",
+    "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Handled by this module: each named NPC must be in the conversation and close to you. Puts back on what the Undress action took off.",
     "key": "Redress",
     "enabled": true,
     "lw_gate": "close",
@@ -23,7 +23,7 @@
     "required": [
         "source"
     ],
-    "prompt": "CRITICAL SYSTEM COMMAND - EQUIPMENT RESTORATION TRIGGER:\n\nThis tool restores clothing/armor to NPCs.\n\nEXECUTION RULES:\n- NPC INTENT: Fire this tool if you (the NPC) want to get dressed, or if you state in your dialogue that you are putting your clothes back on.\n- PLAYER EVENT: Fire this tool if the player inputs an event log stating that you or they are getting dressed (e.g., 'Player puts armor back on').\n- CONSECUTIVE OVERRIDE: You may fire this tool consecutively if the intent or event occurs again.\n\nIf you want to get dressed, say you will get dressed, or the player event log dictates getting dressed , begin your response with '{key}:'.",
+    "prompt": "ANIMATION TRIGGER: the named NPCs put back on the clothes and armor they took off. Use it when the speaking NPC wants to get dressed again, or when the player asks them to. An event line or another NPC's wish is not enough. Never name a child.\n\nIf it applies, begin your response with '{key}:'.",
     "allowed_games": [
         "skyrim"
     ],
@@ -32,5 +32,5 @@
     "allow_repeat": true,
     "one-on-one": true,
     "multi-npc": true,
-    "radiant": true
+    "radiant": false
 }

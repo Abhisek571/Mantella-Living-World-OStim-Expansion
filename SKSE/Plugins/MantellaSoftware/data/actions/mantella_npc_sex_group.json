@@ -6,10 +6,10 @@
   "identifier": "mantella_mlw_sex_group",
   "name": "GroupSexWithPlayer",
   "description": "Initiate a group sex scene with the player and multiple NPCs (2-4 NPCs).",
-  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Handled by this module, which asks the player first; the file name stays so the Community Resources action is replaced.",
+  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs intimate with you (decided by the Hub). Handled by this module, which asks the player first; the file name stays so the Community Resources action is replaced.",
   "key": "GroupSexWithPlayer",
   "enabled": true,
-  "lw_gate": "close",
+  "lw_gate": "intimate",
   "parameters": {
     "source": {
       "type": "array",
@@ -25,7 +25,7 @@
   "required": [
     "source"
   ],
-  "prompt": "ANIMATION TRIGGER: starts a group sex scene with the player and two or more NPCs. Use it when the player clearly asks for group sex now or clearly agrees to it, or when an event says sex is starting. The player then answers a yes or no box, so a clear yes in conversation is enough. Do not use it for flirting, for talk about sex some other time, or while a scene is already running.\n\nIf it applies, begin your response with '{key}:'.",
+  "prompt": "ANIMATION TRIGGER: starts a group sex scene with the player and two or more NPCs. Use it when the player clearly asks for group sex now or clearly agrees to it. Only the player's own clear yes in this conversation counts; an NPC's wish or an event line is not enough. Never name a child. Do not use it for flirting, for talk about sex some other time, or while a scene is already running.\n\nIf it applies, begin your response with '{key}:'.",
   "allowed_games": [
     "skyrim"
   ],
