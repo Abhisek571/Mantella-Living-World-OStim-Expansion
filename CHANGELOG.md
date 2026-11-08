@@ -2,7 +2,7 @@
 
 Every change to Mantella Living World - OStim Expansion. The Nexus page lists only the main changes for each version.
 
-## Unreleased
+## 1.2.0 (2026-11-09)
 
 ### New
 - Affection actions: a couple dance with any NPC you can talk to; kiss, hug, hold hands, cuddle and head pat for close NPCs; lap dance and solo dance for intimate ones.
