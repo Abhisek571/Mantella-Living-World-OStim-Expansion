@@ -97,6 +97,8 @@ for kind in neck_kiss head_pat; do
 done
 
 note "growth, answer No: the kiss ends, she needs a moment, the box after the gap, a not-now line"
+# growth into sex needs her intimate with the player (the Hub's intimate gate); set for the growth scenarios only
+bash "$MO2/tools/devbench-cli.sh" call StorageUtil SetIntValue "[$V,\"MLW_Intimate\",1]" >/dev/null 2>&1; t Join "[$V]" >/dev/null; sleep 4
 t Begin '["affection-grow-no"]'
 t Affection "[$V,\"kiss\"]"; wait_started; sleep 3
 t AskScene "[$V,\"No\"]"; wait_ended 40; asked; sleep 3
@@ -115,6 +117,7 @@ if [ "$RUN_YES" = "yes" ]; then
   echo "   flows: $(t Status)"; t Stop >/dev/null; sleep 15
 fi
 
+bash "$MO2/tools/devbench-cli.sh" call StorageUtil UnsetIntValue "[$V,\"MLW_Intimate\"]" >/dev/null 2>&1
 note "the talk ends during it: stopped, no end line"
 t Begin '["affection-talk-ended"]'
 t Affection "[$V,\"kiss\"]"; wait_started; sleep 3

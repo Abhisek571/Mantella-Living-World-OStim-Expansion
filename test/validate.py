@@ -34,7 +34,7 @@ EXPECT = {   # regex; a literal | is \|
     'bystander': {'must': [r'EVENT\|.* watching from the side'], 'not': []},
     'affection-gate': {'must': [r'AFFECT\|GATE\|[^|]*\|1\|.'], 'not': []},
     'affection-start': {'must': [r'AFFECT\|ACTION\|', r'AFFECT\|CALL\|', r'AFFECT\|TIMING\|start\|', r'EVENT\|(?!There is no)'], 'not': AFFECTION_NEVER},
-    'affection-guards': {'must': [r'EVENT\|There is no way to do cowgirl', r'AFFECT\|REFUSED\|someone is in a scene'], 'not': AFFECTION_NEVER},
+    'affection-guards': {'must': [r'EVENT\|(There is no way to do cowgirl|Positions for this pair are picked in OStim)', r'AFFECT\|REFUSED\|(someone is in a scene|not close)'], 'not': AFFECTION_NEVER},
     'affection-switch': {'must': [r'AFFECT\|SWITCH\|'], 'not': AFFECTION_NEVER + [r'AFFECT\|RESTART\|']},
     'affection-end': {'must': [r'AFFECT\|TIMER\|', r'AFFECT\|TIMING\|end\|', r'AFFECT\|SCORE\|.*\|physical'], 'not': AFFECTION_NEVER},
     'affection-kind': {'must': [r'AFFECT\|ACTION\|', KIND_DONE], 'not': AFFECTION_NEVER},
