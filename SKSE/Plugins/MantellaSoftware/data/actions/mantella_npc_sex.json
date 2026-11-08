@@ -5,7 +5,7 @@
   ],
   "identifier": "mantella_mlw_sex",
   "name": "SexWithPlayer",
-  "description": "Initiate a sex scene with the player.",
+  "description": "Starts an OStim scene between the speaking NPC and the player, once the player confirms.",
   "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs intimate with you (decided by the Hub). Handled by this module, which asks the player first; the file name stays so the Community Resources action is replaced.",
   "key": "SexWithPlayer",
   "enabled": true,
@@ -13,7 +13,7 @@
   "parameters": {
     "source": {
       "type": "array",
-      "description": "The NPC initiating the sex scene.",
+      "description": "The one NPC who starts the scene.",
       "items": {
         "type": "string"
       },
@@ -22,7 +22,7 @@
     },
     "target": {
       "type": "string",
-      "description": "The player character receiving the action."
+      "description": "The player."
     }
   },
   "required": [

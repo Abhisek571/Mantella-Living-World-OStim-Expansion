@@ -5,7 +5,7 @@
   ],
   "identifier": "mantella_mlw_undress",
   "name": "Undress",
-  "description": "Make one or more NPCs remove their clothing/armor.",
+  "description": "The named NPCs take off their clothes and armor.",
   "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs intimate with you (decided by the Hub). Handled by this module: each named NPC must be in the conversation, intimate with you and able to agree; nothing happens while a child is in the conversation. Needs OStim.",
   "key": "Undress",
   "enabled": true,
@@ -13,7 +13,7 @@
   "parameters": {
     "source": {
       "type": "array",
-      "description": "The NPC(s) who will undress.",
+      "description": "Each NPC in this conversation who undresses.",
       "items": {
         "type": "string"
       },

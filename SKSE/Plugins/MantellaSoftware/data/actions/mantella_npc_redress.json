@@ -5,7 +5,7 @@
     ],
     "identifier": "mantella_mlw_redress",
     "name": "Redress",
-    "description": "Make one or more NPCs put their clothing/armor back on.",
+    "description": "The named NPCs put back on what they took off.",
     "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Handled by this module: each named NPC must be in the conversation and close to you. Puts back on what the Undress action took off.",
     "key": "Redress",
     "enabled": true,
@@ -13,7 +13,7 @@
     "parameters": {
         "source": {
             "type": "array",
-            "description": "The NPC(s) who will put their clothes back on.",
+            "description": "Each NPC in this conversation who gets dressed again.",
             "items": {
                 "type": "string"
             },
