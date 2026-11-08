@@ -677,8 +677,10 @@ string Function Line(string asKey)
 EndFunction
 
 string Function NameOf(Actor akActor)
+	; The player's own name, as the other modules write it: Papyrus keeps one copy of strings that differ only in case,
+	; so a literal "the player" came out as "The Player" mid-sentence in a live test.
 	If !akActor || akActor == PlayerRef
-		Return "the player"
+		Return PlayerRef.GetDisplayName()
 	EndIf
 	Return akActor.GetDisplayName()
 EndFunction
