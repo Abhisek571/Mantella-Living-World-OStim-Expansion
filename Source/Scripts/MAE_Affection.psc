@@ -25,8 +25,10 @@ string Property LIST_FILE = "MantellaAdultExpansion/affection.json" AutoReadOnly
 ; The NPC's file the Hub's action filter reads ("lw_gate": "close+affection=1") and the fact the NPC is told.
 string Property NPC_DIR = "MantellaLivingWorld/npc/" AutoReadOnly
 string Property HUB_PLUGIN = "Mantella Living World - Integration Hub.esp" AutoReadOnly
-; StorageUtil on the NPC: the kinds found when she joined the talk, for the fact; KEY_KINDS without the intimate kinds,
-; KEY_KINDS_INTIMATE with them.
+; StorageUtil on the NPC: the kinds found when she joined the talk, for the fact; KEY_KINDS_OPEN only the kinds open to
+; anyone (stringList "open_kinds", such as the couple dance), KEY_KINDS without the intimate kinds, KEY_KINDS_INTIMATE
+; with them.
+string Property KEY_KINDS_OPEN = "MAE_AffectionKindsOpen" AutoReadOnly
 string Property KEY_KINDS = "MAE_AffectionKinds" AutoReadOnly
 string Property KEY_KINDS_INTIMATE = "MAE_AffectionKindsIntimate" AutoReadOnly
 float Property DEFAULT_SECONDS = 30.0 AutoReadOnly
@@ -128,16 +130,19 @@ Function LockFile()
 	fileLock = true
 EndFunction
 
-; The kinds for her standing now: with the intimate kinds only while she is intimate with the player.
+; The kinds for her standing now: with the intimate kinds only while she is intimate with the player, and only the
+; open kinds while she is not close.
 string Function KindsFor(Actor akNpc)
 	If Ask.IsIntimate(akNpc)
 		Return StorageUtil.GetStringValue(akNpc, KEY_KINDS_INTIMATE, "")
+	ElseIf Ask.IsClose(akNpc)
+		Return StorageUtil.GetStringValue(akNpc, KEY_KINDS, "")
 	EndIf
-	Return StorageUtil.GetStringValue(akNpc, KEY_KINDS, "")
+	Return StorageUtil.GetStringValue(akNpc, KEY_KINDS_OPEN, "")
 EndFunction
 
-; The gate and the fact follow her standing, which may change mid-talk; the fact goes only to close NPCs, like the
-; action, and expires today. True when the file changed.
+; The gate and the fact follow her standing, which may change mid-talk; the fact names only the kinds her standing
+; allows, like the action, and expires today. True when the file changed.
 bool Function WriteFact(Actor akNpc, string asPath)
 	string kinds = KindsFor(akNpc)
 	bool changed = false
@@ -147,7 +152,7 @@ bool Function WriteFact(Actor akNpc, string asPath)
 	EndIf
 	string old = JsonUtil.GetStringValue(asPath, "fact_affection", "")
 	string fact = ""
-	If kinds != "" && Ask.IsClose(akNpc)
+	If kinds != ""
 		int today = Utility.GetCurrentGameTime() as int
 		fact = today + "|" + today + "|1|Affection you and the player could share right now: " + kinds + "."
 	EndIf
@@ -170,7 +175,7 @@ string Function AvailableKinds(Actor akNpc)
 	bool chairChecked = false
 	int count = JsonUtil.StringListCount(LIST_FILE, "kinds")
 	string[] names = new string[16]
-	bool[] intimate = new bool[16]
+	int[] level = new int[16]  ; 0 open to anyone, 1 close, 2 intimate
 	int found = 0
 	int i = 0
 	While i < count && found < names.Length
@@ -196,23 +201,24 @@ string Function AvailableKinds(Actor akNpc)
 						names[found] = names[found] + " (only the player does it)"
 					EndIf
 				EndIf
-				intimate[found] = IntimateKind(kind)
+				level[found] = KindLevel(kind)
 				found += 1
 			EndIf
 		EndIf
 		i += 1
 	EndWhile
-	StorageUtil.SetStringValue(akNpc, KEY_KINDS, KindList(names, intimate, found, false))
-	StorageUtil.SetStringValue(akNpc, KEY_KINDS_INTIMATE, KindList(names, intimate, found, true))
+	StorageUtil.SetStringValue(akNpc, KEY_KINDS_OPEN, KindList(names, level, found, 0))
+	StorageUtil.SetStringValue(akNpc, KEY_KINDS, KindList(names, level, found, 1))
+	StorageUtil.SetStringValue(akNpc, KEY_KINDS_INTIMATE, KindList(names, level, found, 2))
 	Return KindsFor(akNpc)
 EndFunction
 
-; The first aiFound names as "a, b and c", the intimate ones only when abIntimate.
-string Function KindList(string[] asNames, bool[] abIntimate, int aiFound, bool abWithIntimate)
+; The first aiFound names as "a, b and c", those of level aiMaxLevel or lower.
+string Function KindList(string[] asNames, int[] aiLevels, int aiFound, int aiMaxLevel)
 	int last = -1
 	int i = 0
 	While i < aiFound
-		If abWithIntimate || !abIntimate[i]
+		If aiLevels[i] <= aiMaxLevel
 			last = i
 		EndIf
 		i += 1
@@ -220,7 +226,7 @@ string Function KindList(string[] asNames, bool[] abIntimate, int aiFound, bool 
 	string list = ""
 	i = 0
 	While i < aiFound
-		If abWithIntimate || !abIntimate[i]
+		If aiLevels[i] <= aiMaxLevel
 			list = MAE_Text.ListAdd(list, asNames[i], i == last && list != "")
 		EndIf
 		i += 1
@@ -338,6 +344,20 @@ bool Function IntimateKind(string asKind)
 	Return JsonUtil.StringListFind(LIST_FILE, "intimate_kinds", asKind) >= 0
 EndFunction
 
+; A kind any NPC who can talk may share with the player (stringList "open_kinds"), not only close ones.
+bool Function OpenKind(string asKind)
+	Return JsonUtil.StringListFind(LIST_FILE, "open_kinds", asKind) >= 0
+EndFunction
+
+int Function KindLevel(string asKind)
+	If IntimateKind(asKind)
+		Return 2
+	ElseIf OpenKind(asKind)
+		Return 0
+	EndIf
+	Return 1
+EndFunction
+
 string Function Furniture(string asKind)
 	Return JsonUtil.GetStringValue(LIST_FILE, "furniture_" + asKind, "")
 EndFunction
@@ -406,7 +426,7 @@ bool Function RequestScene(Actor akNpc, string asKind, string asWho, float now, 
 		Log("REFUSED|no fitting speaker|" + asKind)
 		Return false
 	EndIf
-	If !Ask.IsClose(akNpc)
+	If !Ask.IsClose(akNpc) && !OpenKind(asKind)
 		Log("REFUSED|not close|" + asKind)
 		Return false
 	EndIf

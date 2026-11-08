@@ -6,6 +6,9 @@
         "intimate_kinds": [
             "lap_dance", "solo_dance"
         ],
+        "open_kinds": [
+            "dance"
+        ],
         "kiss": [
             "OARE_StandingKiss", "OARE_HoldingChinKiss", "OARE_HoldingWaistKiss", "OARE_StandingEmbraceKiss", "OARE_StandingTwoHandsHoldingKiss"
         ],

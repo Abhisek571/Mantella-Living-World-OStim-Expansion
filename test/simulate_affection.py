@@ -22,12 +22,14 @@ Invariants checked on every run:
   fact        the fact left in the NPC file matches the kinds and closeness the save holds
   intimate    no intimate kind (the lap dance) starts, is switched to, or is named in the fact for an NPC who is not
               intimate with the player
+  close       no kind but an open one (the couple dance) starts or is switched to with an NPC who is not close
 
 Each fix in the scripts is a named switch here (FIXES). The directed scenarios are the minimal failing sequences,
 written out: each must fail on the code before the fixes, fail with its own fix left out, and pass with all of them.
 Random runs are shrunk to a minimal choice sequence. 'talk-latency' and 'gap-latency' are residual: an end event that
 has not reached the script yet, which no Papyrus check can see; they are reported and don't fail the run.
-'intimate-latency' is residual too: the player changed the NPC's standing after the request had passed its check.
+'intimate-latency' and 'close-latency' are residual too: the player changed the NPC's standing after the request had
+passed its check.
 
 usage: py -3 simulate_affection.py [--runs 3000] [--seed 1] [--steps 160] [--original] [--without FIX] [--traces]
   --original   the code as it was before the fixes; --without FIX leaves one fix out
@@ -37,12 +39,13 @@ Exit code 1 when a scenario does not behave as above or a non-residual invariant
 import argparse, random, sys
 
 PLAYER, A, B, C = 'player', 'A', 'B', 'C'
-KINDS = ['kiss', 'neck_kiss', 'lap_dance']          # a plain kind, a who_ kind and a chair kind
+KINDS = ['kiss', 'neck_kiss', 'lap_dance', 'dance']  # a plain kind, a who_ kind, a chair kind and an open kind
 WHO_KINDS = {'neck_kiss', 'lap_dance'}
 CHAIR_KINDS = {'lap_dance'}
 INTIMATE_KINDS = {'lap_dance'}                       # affection.json "intimate_kinds"
+OPEN_KINDS = {'dance'}                               # affection.json "open_kinds": any NPC who can talk
 START_TIMEOUT, ASK_TIMEOUT, RESTART_GAP = 240.0, 120.0, 5.0
-SECONDS = {'kiss': 30.0, 'neck_kiss': 30.0, 'lap_dance': 60.0}
+SECONDS = {'kiss': 30.0, 'neck_kiss': 30.0, 'lap_dance': 60.0, 'dance': 60.0}
 
 
 class Fail(Exception):
@@ -100,6 +103,8 @@ class World:
         self.closeness = {A: 1, B: 1, C: 1}
         self.intimacy = {A: 1, B: 1, C: 1}  # the Hub's IntimateValue
         self.intimacy_changed = {}  # npc -> time the player last changed it
+        self.closeness_changed = {}
+        self.kinds_open = {}        # StorageUtil MAE_AffectionKindsOpen per NPC
         self.kinds_su = {}          # StorageUtil MAE_AffectionKinds per NPC
         self.kinds_int = {}         # StorageUtil MAE_AffectionKindsIntimate per NPC
         self.facts = {}             # the NPC file's fact_affection
@@ -151,6 +156,7 @@ class World:
             raise Fail('chair', f'{who} started a chair scene on a chair someone else took')
         if 'mlw_affection' in meta:
             self.check_intimate(scene, [a for a in actors if a != PLAYER], who + ' started')
+            self.check_close(scene, [a for a in actors if a != PLAYER], who + ' started')
         rec = OThreadRec(actors, meta, scene, chair)
         used = {o.id for o in self.live()}
         rec.id = 0 if 0 not in used else max(used) + 1       # OStim gives the player's thread id 0, so ids repeat
@@ -170,6 +176,14 @@ class World:
             self.chair_free, self.chair_user = False, 'us'
         self.note(f'OSTIM start uid{rec.uid} id={rec.id} {actors} meta={meta} scene={scene} walk={walk} by {who}')
         return rec.id
+
+    def check_close(self, scene, npcs, what):
+        if scene.split('-')[0] in OPEN_KINDS:
+            return
+        for npc in npcs:
+            if not self.closeness.get(npc, 0):
+                late = self.closeness_changed.get(npc, -1.0) >= self.aff.actionAt
+                raise Fail('close-latency' if late else 'close', f'{what} {scene} with {npc}, who is not close')
 
     def check_intimate(self, scene, npcs, what):
         if scene.split('-')[0] not in INTIMATE_KINDS:
@@ -289,6 +303,7 @@ class World:
                 self.note('WORLD the chair is free again')
         elif k == 9:
             self.closeness[npc] = 1 - self.closeness[npc]
+            self.closeness_changed[npc] = self.t
             self.note(f'WORLD {npc} closeness={self.closeness[npc]}, MLW_RefreshNpc sent')
             self.events.append(('refresh', (npc,)))
         elif k == 10:
@@ -463,7 +478,8 @@ class Affection:
 
     # --- gate and fact (73-123)
     def AvailableKinds(self, npc):                              # AvailableKinds
-        """Both lists: without the intimate kinds (MAE_AffectionKinds) and with them (MAE_AffectionKindsIntimate)."""
+        """Three lists: only the open kinds (MAE_AffectionKindsOpen), without the intimate kinds (MAE_AffectionKinds) and
+        with them (MAE_AffectionKindsIntimate)."""
         found = []
         chair = None
         for kind in KINDS:
@@ -478,13 +494,15 @@ class Affection:
                 if s1 or s2:
                     found.append(kind)
         full = ','.join(found)
+        opened = ','.join(k for k in found if k in OPEN_KINDS)
         if not self.w.has('intimate'):
-            return full, full
-        return ','.join(k for k in found if k not in INTIMATE_KINDS), full
+            return opened, full, full
+        return opened, ','.join(k for k in found if k not in INTIMATE_KINDS), full
 
     def OnNpcAdded(self, npc):                                  # 74-91
         w = self.w
-        kinds, full = yield from self.AvailableKinds(npc)
+        opened, kinds, full = yield from self.AvailableKinds(npc)
+        yield from N(w, lambda: w.kinds_open.__setitem__(npc, opened))
         yield from N(w, lambda: w.kinds_su.__setitem__(npc, kinds))
         yield from N(w, lambda: w.kinds_int.__setitem__(npc, full))
         yield from N(w)                                         # 84 RegisterForModEvent
@@ -515,16 +533,18 @@ class Affection:
         intimate = True
         if w.has('intimate'):
             intimate = yield from N(w, lambda: w.intimacy[npc])       # KindsFor: IsIntimate
-        store = w.kinds_int if intimate and w.has('intimate') else w.kinds_su
+        if intimate and w.has('intimate'):
+            store = w.kinds_int
+        else:
+            close = yield from N(w, lambda: w.closeness[npc])         # KindsFor: IsClose
+            store = w.kinds_su if close > 0 else w.kinds_open
         kinds = yield from N(w, lambda: store.get(npc, ''))           # KindsFor
         yield from N(w)                                               # gate
-        old = yield from N(w, lambda: w.facts.get(npc, ''))           # 109
+        old = yield from N(w, lambda: w.facts.get(npc, ''))
         fact = ''
         if kinds:
-            close = yield from N(w, lambda: w.closeness[npc])         # 111 CloseValue
-            if close > 0:
-                yield from N(w)                                       # 112 GetCurrentGameTime
-                fact = kinds
+            yield from N(w)                                           # GetCurrentGameTime
+            fact = kinds
         if fact == old:
             return False
         yield from N(w, lambda: w.facts.__setitem__(npc, fact))       # 118/120
@@ -606,6 +626,10 @@ class Affection:
         if now is None:
             now = yield from N(w, lambda: w.t)                  # 298
         yield from N(w)                                         # 299 IsChildActor
+        close = yield from N(w, lambda: w.closeness[npc])       # Ask.IsClose
+        if not close and kind not in OPEN_KINDS:
+            yield from self.Log(f'REFUSED|not close|{kind}')
+            return False
         if w.has('box_check'):
             asking = yield from w.ask.Asking()                  # fix: the Ask First box is open
             if asking:
@@ -754,6 +778,7 @@ class Affection:
             rec = w.by_id(t)
             if rec and 'mlw_affection' in rec.meta:
                 w.check_intimate(scene, [a for a in rec.actors if a != PLAYER], 'Switch warped to')
+                w.check_close(scene, [a for a in rec.actors if a != PLAYER], 'Switch warped to')
                 rec.scene = scene; landed['ok'] = True
         if scene != current:
             yield from N(w, warp)                               # 428
@@ -1073,8 +1098,11 @@ def final_checks(w):
     for npc, fact in w.facts.items():
         if not w.intimacy[npc] and any(k in fact.split(',') for k in INTIMATE_KINDS):
             raise Fail('intimate', f'{npc} file names "{fact}", but {npc} is not intimate with the player')
-        store = w.kinds_int if w.intimacy[npc] and w.has('intimate') else w.kinds_su
-        want = store.get(npc, '') if w.closeness[npc] > 0 else ''
+        if w.intimacy[npc] and w.has('intimate'):
+            store = w.kinds_int
+        else:
+            store = w.kinds_su if w.closeness[npc] > 0 else w.kinds_open
+        want = store.get(npc, '')
         if fact != want:
             raise Fail('fact', f'{npc} file says "{fact}", the save holds kinds "{w.kinds_su.get(npc, "")}" and closeness {w.closeness[npc]}')
     # A fresh request with a fresh NPC, everything in its favour; from here every decision is the boring one.
@@ -1157,7 +1185,7 @@ def shrink(seq, cat, fixes, steps):
     return cur
 
 
-RESIDUAL = {'talk-latency', 'gap-latency', 'intimate-latency'}   # an end event not yet delivered: nothing in Papyrus can see it
+RESIDUAL = {'talk-latency', 'gap-latency', 'intimate-latency', 'close-latency'}   # an end event not yet delivered: nothing in Papyrus can see it
 
 
 # ---------------------------------------------------------------------------
@@ -1342,7 +1370,7 @@ def sc_scene_ends_during_switch(s):
 def sc_join_and_refresh(s):
     """A joins the talk and the Arousal module's refresh for A arrives at the same moment."""
     s.ev('npc_added', A); s.ev('refresh', A)
-    for _ in range(4 if s.w.has('intimate') else 2):         # until the refresh has read the kinds
+    for _ in range(4):                                       # until the refresh has read the kinds
         s.w.step_thread(s.th('Affection.OnRefreshNpc'))
     s.finish('Affection.OnNpcAdded'); s.settle()
 

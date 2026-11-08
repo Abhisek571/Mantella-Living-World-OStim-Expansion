@@ -33,7 +33,7 @@ GATES = {
     'mantella_npc_redress.json': ('mantella_mlw_redress', 'close'),
     'mantella_mae_change_position.json': ('mantella_mae_change_position', 'intimate'),
     'mantella_mae_rate_positions.json': ('mantella_mae_rate_positions', 'intimate+unrated'),
-    'mantella_mlw_affection.json': ('mantella_mlw_affection', 'close+affection=1'),
+    'mantella_mlw_affection.json': ('mantella_mlw_affection', 'adult+affection=1'),  # the couple dance is open to anyone
 }
 OBEY = re.compile(r'event log|CONSECUTIVE OVERRIDE|PLAYER EVENT|CRITICAL SYSTEM COMMAND', re.I)
 

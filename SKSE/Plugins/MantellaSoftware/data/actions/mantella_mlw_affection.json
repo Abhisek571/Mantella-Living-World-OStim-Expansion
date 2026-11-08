@@ -43,5 +43,5 @@
     "one-on-one": true,
     "multi-npc": true,
     "radiant": false,
-    "lw_gate": "close+affection=1"
+    "lw_gate": "adult+affection=1"
 }

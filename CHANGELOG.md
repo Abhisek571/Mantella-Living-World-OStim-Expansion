@@ -5,7 +5,7 @@ Every change to Mantella Living World - OStim Expansion. The Nexus page lists on
 ## Unreleased
 
 ### New
-- Affection actions: kiss, hug, hold hands, cuddle, head pat and couple dance for close NPCs; lap dance and solo dance for intimate ones.
+- Affection actions: a couple dance with any NPC you can talk to; kiss, hug, hold hands, cuddle and head pat for close NPCs; lap dance and solo dance for intimate ones.
 - Undress, redress and sex actions need the "intimate" check and the NPC's agreement. Radiant talks between NPCs get none of them.
 - The five action files that replace the Community Resources actions now have their own descriptions.
 - Consent and child checks run before every affection scene, and again when a running scene is changed.

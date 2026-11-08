@@ -152,9 +152,14 @@ def check_action():
     for k in wl['stringList'].get('intimate_kinds', []):
         if k not in kinds:
             fail(f'intimate_kinds names {k}, which is no listed kind')
+    for k in wl['stringList'].get('open_kinds', []):
+        if k not in kinds:
+            fail(f'open_kinds names {k}, which is no listed kind')
+    for k in set(wl['stringList'].get('open_kinds', [])) & set(wl['stringList'].get('intimate_kinds', [])):
+        fail(f'{k} is both an open and an intimate kind')
     for key in wl['stringList']:
         base = re.sub(r'_(mf|ff|mm)$', '', key)
-        if key not in ('kinds', 'intimate_kinds') and base not in kinds:
+        if key not in ('kinds', 'intimate_kinds', 'open_kinds') and base not in kinds:
             fail(f'scene list {key} belongs to no listed kind')
     for key in wl['string']:
         m = re.match(r'(who|furniture|name|line|end)_(.*)$', key)
