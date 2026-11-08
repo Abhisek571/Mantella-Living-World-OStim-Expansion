@@ -1,0 +1,47 @@
+{
+    "identifier": "mantella_mlw_affection",
+    "name": "Affection",
+    "description": "Share a short moment of affection with the player, played as an animation. Clothes stay on and it ends by itself after a little while. Kinds: kiss (on the lips), neck_kiss (one kisses the other's neck), hand_kiss (one kisses the other's hand), hold_hands, hug (an embrace), cuddle, head_pat (one strokes the other's head), dance (a couple dance together), lap_dance (one dances on the lap of the other, who sits on a chair; needs a free chair close by), solo_dance (one dances for the other, who watches from a chair; needs a free chair close by). Only the kinds named in what you know for certain work with this pair here. Use it when the player asks for or offers one of these and the speaking NPC is willing, or when the speaking NPC offers it and it fits their mood and personality. The speaking NPC may say no instead.",
+    "note": "Needs OStim, Mantella Living World - OStim Expansion and Mantella's Advanced Actions on. Offered only to close NPCs, and only when one of the listed animations is installed for the pair. No box asks first. Clothes stay on.",
+    "key": "Affection",
+    "parameters": {
+        "kind": {
+            "type": "string",
+            "enum": [
+                "kiss",
+                "neck_kiss",
+                "hand_kiss",
+                "hold_hands",
+                "hug",
+                "cuddle",
+                "head_pat",
+                "dance",
+                "lap_dance",
+                "solo_dance"
+            ],
+            "description": "What they do, exactly one of: kiss, neck_kiss, hand_kiss, hold_hands, hug, cuddle, head_pat, dance, lap_dance, solo_dance."
+        },
+        "who": {
+            "type": "string",
+            "enum": [
+                "npc",
+                "player"
+            ],
+            "description": "Who does it, for neck_kiss, hand_kiss, head_pat, lap_dance and solo_dance: npc (the speaking NPC, the default) or player."
+        }
+    },
+    "required": [
+        "kind"
+    ],
+    "prompt": "ANIMATION TRIGGER: starts a short moment of affection with the player: a kiss, a hug, a dance and the like. Use it when the player asks for or offers one and you are willing, or when you offer one yourself and it fits the moment. Calling it again during one switches to another kind. Do not use it for talk about it some other time, or after the player said no. If things go further towards sex, use the sex action instead.\n\nIf it applies, begin your response with '{key}:'",
+    "allowed_games": [
+        "skyrim"
+    ],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": true,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false,
+    "lw_gate": "adult+affection=1"
+}

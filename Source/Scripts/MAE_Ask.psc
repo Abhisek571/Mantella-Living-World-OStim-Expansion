@@ -24,8 +24,10 @@ float Property ASK_TIMEOUT = 120.0 AutoReadOnly
 
 bool asking = false
 float askedAt = 0.0
-; Testing: answers instead of the box when set.
+; Testing: answers instead of the box when set, and only while MAE_TestMode is 1.
 string testAnswer = ""
+; The Hub could not be read: said once in the Papyrus log.
+bool warnedNoHub = false
 
 Event OnInit()
 	RegisterForModEvent("MantellaConversation_Advanced_Action_" + ACTION_SEX, "OnSexAdvanced")
@@ -46,7 +48,8 @@ Event OnGroupAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 	EndIf
 EndEvent
 
-; The action's "source" names as actors, up to aiMax and without the player or doubles; the speaker when none resolves.
+; The action's "source" names as conversation members, up to aiMax and without the player, doubles or anyone not
+; intimate with the player; the speaker when none resolves and the speaker is intimate.
 Actor[] Function Resolve(Form akSpeaker, Form akConversation, int aiArguments, int aiMax)
 	MantellaConversation conversation = akConversation as MantellaConversation
 	string[] names = SKSE_HTTP.getStringArray(aiArguments, "source")
@@ -54,42 +57,95 @@ Actor[] Function Resolve(Form akSpeaker, Form akConversation, int aiArguments, i
 	int count = 0
 	int i = 0
 	While conversation && names && i < names.Length && count < aiMax
-		Actor npc = conversation.GetActorByName(names[i])
-		If npc && npc != PlayerRef && found.Find(npc) < 0
+		Actor npc = MAE_Text.TalkActor(conversation, names[i])
+		If npc && npc != PlayerRef && found.Find(npc) < 0 && IsIntimate(npc)
 			found[count] = npc
 			count += 1
 		EndIf
 		i += 1
 	EndWhile
-	If count == 0 && (akSpeaker as Actor) && (akSpeaker as Actor) != PlayerRef
+	If count == 0 && (akSpeaker as Actor) && (akSpeaker as Actor) != PlayerRef && IsIntimate(akSpeaker as Actor)
 		found[0] = akSpeaker as Actor
 		count = 1
 	EndIf
 	Return PapyrusUtil.ResizeActorArray(found, count)
 EndFunction
 
-Function Request(Actor[] akNpcs)
+; Close to the player as the Hub decides (the standing that offers affection); false when the Hub can't be read.
+bool Function IsClose(Actor akNpc)
+	MLW_Channel channel = Channel()
+	Return channel && channel.CloseValue(akNpc) > 0
+EndFunction
+
+; Intimate with the player as the Hub decides (the standing that offers the sex actions); false when the Hub can't
+; be read, so a renamed or merged Hub plugin never lets everyone through.
+bool Function IsIntimate(Actor akNpc)
+	MLW_Channel channel = Channel()
+	Return channel && channel.IntimateValue(akNpc) > 0
+EndFunction
+
+MLW_Channel Function Channel()
+	MLW_Channel channel = Game.GetFormFromFile(0x000823, "Mantella Living World - Integration Hub.esp") as MLW_Channel
+	If !channel && !warnedNoHub
+		warnedNoHub = true
+		Debug.Trace("Mantella Living World - OStim Expansion: the Integration Hub can't be read, so no scene starts.")
+	EndIf
+	Return channel
+EndFunction
+
+; abAfterAffection: the request came during an affection scene, which has ended (MAE_Affection.Grow).
+; One request at a time from its first check to the start: two at once could both start a scene.
+Function Request(Actor[] akNpcs, bool abAfterAffection = false)
 	float now = Utility.GetCurrentRealTime()
 	If asking && now >= askedAt && now - askedAt < ASK_TIMEOUT
 		Return
 	EndIf
-	If OActor.IsInOStim(PlayerRef)
+	asking = true
+	askedAt = now
+	RequestScene(akNpcs, abAfterAffection)
+	If askedAt == now
+		asking = false
+	EndIf
+EndFunction
+
+; MAE_Affection holds its own requests back while this is true.
+bool Function Asking()
+	float now = Utility.GetCurrentRealTime()
+	Return asking && now >= askedAt && now - askedAt < ASK_TIMEOUT
+EndFunction
+
+Function RequestScene(Actor[] akNpcs, bool abAfterAffection)
+	MAE_Affection affection = Game.GetFormFromFile(0x000826, "Mantella Living World - OStim Expansion.esp") as MAE_Affection
+	If OActor.IsInOStim(PlayerRef) || (affection && affection.Busy())
+		; During an affection scene with her (or while it is starting) the request goes on once that scene has ended.
+		If akNpcs.Length == 1 && affection && affection.Grow(akNpcs[0])
+			Log("GROW|" + Names(akNpcs))
+		EndIf
+		Return
+	EndIf
+	If MAE_Text.MinorInTalk()
+		Log("REFUSED|a child is in the conversation")
+		Positions.AddMantellaEvent(Names(akNpcs) + " will not start anything with a child in the conversation.")
 		Return
 	EndIf
 	int i = 0
 	While i < akNpcs.Length
-		If MAE_Text.IsChildActor(akNpcs[i]) || OActor.IsInOStim(akNpcs[i])
+		If MAE_Text.IsChildActor(akNpcs[i]) || MAE_Text.CannotConsent(akNpcs[i])
+			Log("REFUSED|" + akNpcs[i].GetDisplayName() + " cannot agree now")
+			Positions.AddMantellaEvent(akNpcs[i].GetDisplayName() + " is in no state for that right now.")
 			Return
 		EndIf
 		i += 1
 	EndWhile
-	asking = true
-	askedAt = now
+	If !MAE_Text.PlayerCanConsent()
+		Log("REFUSED|the player cannot agree now")
+		Positions.AddMantellaEvent("Nothing starts: this is no moment for it.")
+		Return
+	EndIf
 	string answer = "Yes"
 	If MAE_AskBeforeScene.GetValueInt() == 1
 		answer = Ask(akNpcs)
 	EndIf
-	asking = false
 	Log("ANSWER|" + answer + "|" + Names(akNpcs))
 	If answer == "Yes"
 		Actor[] actors = PapyrusUtil.ActorArray(akNpcs.Length + 1)
@@ -99,7 +155,32 @@ Function Request(Actor[] akNpcs)
 			actors[i + 1] = akNpcs[i]
 			i += 1
 		EndWhile
-		OThread.QuickStart(actors)
+		MAE_Text.WaitAfterScene()
+		; The player may have started a scene meanwhile, or the box stayed open past ASK_TIMEOUT.
+		If OActor.IsInOStim(PlayerRef) || (affection && affection.Busy())
+			Log("REFUSED|someone is in a scene")
+			Return
+		EndIf
+		i = 0
+		While i < akNpcs.Length
+			If MAE_Text.CannotConsent(akNpcs[i])
+				Log("REFUSED|" + akNpcs[i].GetDisplayName() + " cannot agree now")
+				Positions.AddMantellaEvent(akNpcs[i].GetDisplayName() + " is in no state for that right now.")
+				Return
+			EndIf
+			i += 1
+		EndWhile
+		If MAE_Text.MinorInTalk() || !MAE_Text.PlayerCanConsent()
+			Log("REFUSED|a child joined or the player cannot agree now")
+			Positions.AddMantellaEvent("Nothing starts: this is no moment for it.")
+			Return
+		EndIf
+		If OThread.QuickStart(actors) < 0
+			Log("FAILED|QuickStart")
+			Positions.AddMantellaEvent("The scene could not start, so " + Names(akNpcs) + " and the player carry on as they were.")
+		ElseIf abAfterAffection
+			Positions.AddMantellaEvent(Names(akNpcs) + " is ready now, and they start having sex.")
+		EndIf
 	ElseIf answer == "Skip"
 		Skip(akNpcs)
 	Else
@@ -107,10 +188,22 @@ Function Request(Actor[] akNpcs)
 	EndIf
 EndFunction
 
+; MAE_Affection: the affection scene with akNpc has ended and the restart gap is over.
+Function RequestAfterAffection(Actor akNpc)
+	Actor[] npcs = new Actor[1]
+	npcs[0] = akNpc
+	Log("AFTER AFFECTION|" + akNpc.GetDisplayName() + "|sinceEnd=" + MAE_Text.SecondsSinceSceneEnd())
+	Request(npcs, true)
+EndFunction
+
 ; No Skip in combat: time should not jump with enemies around.
 string Function Ask(Actor[] akNpcs)
 	If testAnswer != ""
-		Return testAnswer
+		If MAE_TestMode.GetValueInt() == 1
+			Return testAnswer
+		EndIf
+		; A test that ended without clearing it: never answer for the player outside test mode.
+		testAnswer = ""
 	EndIf
 	string text = Names(akNpcs) + " want to start a scene with you."
 	If akNpcs.Length == 1
@@ -132,9 +225,14 @@ Function Skip(Actor[] akNpcs)
 	int i = 0
 	While i < akNpcs.Length
 		Satisfy(akNpcs[i])
-		; The Arousal module's tally, the same keys MAE_Flows reads; it flips its satisfied flag on its next check.
-		StorageUtil.AdjustFloatValue(akNpcs[i], "MantellaOSLA_Climaxes", 1.0)
-		StorageUtil.SetFloatValue(akNpcs[i], "MantellaOSLA_ClimaxTime", Utility.GetCurrentGameTime())
+		; The Arousal module adds it to its tally (draining it first) and flips its satisfied flag on its next check.
+		; Nobody listens without the Arousal module.
+		int handle = ModEvent.Create("MLW_AddClimaxes")
+		If handle
+			ModEvent.PushForm(handle, akNpcs[i])
+			ModEvent.PushInt(handle, 1)
+			ModEvent.Send(handle)
+		EndIf
 		i += 1
 	EndWhile
 	Utility.Wait(SKIP_BLACK_SECONDS)

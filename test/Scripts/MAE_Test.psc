@@ -234,6 +234,65 @@ Function AskScene(Actor akNpc, string asAnswer) Global
 	EndIf
 EndFunction
 
+MAE_Affection Function AffectionQuest() Global
+	Return Game.GetFormFromFile(0x000826, "Mantella Living World - OStim Expansion.esp") as MAE_Affection
+EndFunction
+
+; Mantella: akNpc uses the affection action.
+Function Affection(Actor akNpc, string asKind) Global
+	Action("mantella_mlw_affection", akNpc, "kind", asKind)
+EndFunction
+
+; The same with who does it: "npc" or "player".
+Function AffectionWho(Actor akNpc, string asKind, string asWho) Global
+	Mark("action|mantella_mlw_affection|kind=" + asKind + "|who=" + asWho)
+	int args = SKSE_HTTP.createDictionary()
+	SKSE_HTTP.setString(args, "kind", asKind)
+	SKSE_HTTP.setString(args, "who", asWho)
+	int handle = ModEvent.Create("MantellaConversation_Advanced_Action_mantella_mlw_affection")
+	If handle
+		ModEvent.PushForm(handle, akNpc)
+		ModEvent.PushForm(handle, None)
+		ModEvent.PushInt(handle, args)
+		ModEvent.Send(handle)
+	EndIf
+EndFunction
+
+; The kinds the gate would offer with akNpc here, as told to her.
+string Function AffectionKinds(Actor akNpc) Global
+	Return AffectionQuest().TestKinds(akNpc)
+EndFunction
+
+; Seconds an affection scene lasts; 0 goes back to the listed time.
+Function AffectionSeconds(float afSeconds) Global
+	Mark("affection seconds|" + afSeconds)
+	AffectionQuest().TestSeconds(afSeconds)
+EndFunction
+
+string Function AffectionState() Global
+	Return AffectionQuest().TestState()
+EndFunction
+
+; The gate field in the NPC's file; -1 if none was written.
+int Function AffectionGate(Actor akNpc) Global
+	Return AffectionQuest().TestGate(akNpc)
+EndFunction
+
+; What the actor wears on the body, to see that nothing undresses.
+string Function Worn(Actor akActor) Global
+	Form body = akActor.GetWornForm(0x00000004)
+	If !body
+		Return "nothing"
+	EndIf
+	Return body.GetName()
+EndFunction
+
+; Answers the Ask First box from now on without showing it ("Yes", "No", "Skip"); "" shows the real box again.
+Function AskAnswer(string asAnswer) Global
+	Mark("ask answer|" + asAnswer)
+	(Game.GetFormFromFile(0x000825, "Mantella Living World - OStim Expansion.esp") as MAE_Ask).TestAnswerWith(asAnswer)
+EndFunction
+
 ; What a skipped scene moved, for checking.
 string Function Moved(Actor akNpc) Global
 	Return "npcArousal=" + OSLArousedNative.GetArousalNoSideEffects(akNpc) + " playerArousal=" + OSLArousedNative.GetArousalNoSideEffects(Game.GetPlayer()) \

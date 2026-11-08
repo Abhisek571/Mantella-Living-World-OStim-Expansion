@@ -1,0 +1,119 @@
+{
+    "stringList": {
+        "kinds": [
+            "kiss", "neck_kiss", "hand_kiss", "hold_hands", "hug", "cuddle", "head_pat", "dance", "lap_dance", "solo_dance"
+        ],
+        "intimate_kinds": [
+            "lap_dance", "solo_dance"
+        ],
+        "open_kinds": [
+            "dance"
+        ],
+        "kiss": [
+            "OARE_StandingKiss", "OARE_HoldingChinKiss", "OARE_HoldingWaistKiss", "OARE_StandingEmbraceKiss", "OARE_StandingTwoHandsHoldingKiss"
+        ],
+        "kiss_mf": [
+            "OStim2PStandingHandHoldingKissMF", "OStim2PStandingHoldingChinKissMF", "OStim2PStandingKissEmbraceMF", "OStim2PStandingKissHoldingHipMF", "OStim2PStandingKissMF"
+        ],
+        "kiss_ff": [
+            "MNBVHoldingHandsKiss"
+        ],
+        "neck_kiss": [
+            "OARE_PrincessCarryNeckKiss"
+        ],
+        "neck_kiss_mf": [
+            "MLCReverseEmbraceNeckKiss", "MLCReverseEmbraceNeckKiss2", "MLCReverseEmbraceNeckKiss3"
+        ],
+        "hand_kiss_ff": [
+            "MNBVHoldingHandsKissHand"
+        ],
+        "hold_hands": [
+            "OARE_StandingHandHolding", "OARE_StandingTwoHandsHolding", "OARE_HoldHandFromBehind"
+        ],
+        "hold_hands_mf": [
+            "OStim2PStandingHandHoldingHighMF", "OStim2PStandingHandHoldingLowMF"
+        ],
+        "hold_hands_ff": [
+            "MNBVHoldingHands"
+        ],
+        "hug": [
+            "OARE_GentleEmbrace", "OARE_StandingEmbraceCute", "OARE_HugFromBehind", "OARE_HoldingChinHug"
+        ],
+        "hug_mf": [
+            "OARE_StandingHug", "OStim2PStandingHugMF", "OStim2PStandingHugFromBehindMF", "OStim2PStandingHoldingChinHugMF", "OStim2PStandingHoldingMF", "MLCStandingEmbrace"
+        ],
+        "hug_ff": [
+            "MNBVStandingHug", "MNBVStandingHug2"
+        ],
+        "cuddle": [
+            "OARE_CuddleFromBehind", "OARE_StandingHandOnHeadCuddle"
+        ],
+        "cuddle_mf": [
+            "OStim2PStandingCuddleFromBehindMF", "OStim2PStandingCuddleHoldingHeadMF", "MLCNoseRubbing", "MLCBedSideCuddleIdle"
+        ],
+        "head_pat": [
+            "OARE_HeadCaress", "OARE_LapPillowHeadStroke"
+        ],
+        "head_pat_mf": [
+            "OStim2PStandingHeadPattingMF"
+        ],
+        "dance_mf": [
+            "ShadowmanBallroombachata-1", "ShadowmanBallroomballet-1", "ShadowmanBallroomsalsa1-1", "ShadowmanBallroomslowfox-1", "ShadowmanBallroomslowwaltz-1", "ShadowmanBallroomtango-1", "ShadowmanBallroomvienese-1"
+        ],
+        "lap_dance_mf": [
+            "GunslicerChair2PLapDanceIntro", "GunslicerChair2PLapDanceIntroBendOver", "GunslicerChair2PLapDanceIntroFrontal", "GunslicerChair2PLapDanceIntroShowOff", "GunslicerChair2PLapDanceIntroTwerk"
+        ],
+        "solo_dance_mf": [
+            "MJSITwerk", "MJSITwerk2", "MJSITwerk3"
+        ],
+        "solo_dance_ff": [
+            "MJSITwerkFF", "MJSITwerkFF2", "MJSITwerkFF3"
+        ],
+        "solo_dance_mm": [
+            "MJSITwerkMM", "MJSITwerkMM2", "MJSITwerkMM3"
+        ]
+    },
+    "float": {
+        "kiss": 30.0, "neck_kiss": 30.0, "hand_kiss": 20.0, "hold_hands": 40.0, "hug": 25.0, "cuddle": 45.0, "head_pat": 25.0,
+        "dance": 60.0, "lap_dance": 60.0, "solo_dance": 60.0
+    },
+    "string": {
+        "who_neck_kiss": "kissingneck",
+        "who_hand_kiss": "kissinghand",
+        "who_head_pat": "pattinghead,strokinghead",
+        "who_lap_dance": "dancing",
+        "who_solo_dance": "dancing",
+        "furniture_lap_dance": "chair",
+        "furniture_solo_dance": "chair",
+        "name_kiss": "a kiss",
+        "name_neck_kiss": "a kiss on the neck",
+        "name_hand_kiss": "a kiss on the hand",
+        "name_hold_hands": "holding hands",
+        "name_hug": "a hug",
+        "name_cuddle": "cuddling",
+        "name_head_pat": "a head pat",
+        "name_dance": "a couple dance",
+        "name_lap_dance": "a lap dance on a chair",
+        "name_solo_dance": "a dance for the other, who watches from a chair",
+        "line_kiss": "{a} and {b} are kissing.",
+        "end_kiss": "{a} and {b} stop kissing.",
+        "line_neck_kiss": "{a} is kissing {b}'s neck.",
+        "end_neck_kiss": "{a} stops kissing {b}'s neck.",
+        "line_hand_kiss": "{a} kisses {b}'s hand.",
+        "end_hand_kiss": "{a} lets go of {b}'s hand.",
+        "line_hold_hands": "{a} and {b} are holding hands.",
+        "end_hold_hands": "{a} and {b} let go of each other's hands.",
+        "line_hug": "{a} and {b} are hugging.",
+        "end_hug": "{a} and {b} let go of each other.",
+        "line_cuddle": "{a} and {b} are cuddling.",
+        "end_cuddle": "{a} and {b} stop cuddling.",
+        "line_head_pat": "{a} is stroking {b}'s head.",
+        "end_head_pat": "{a} stops stroking {b}'s head.",
+        "line_dance": "{a} and {b} are dancing together.",
+        "end_dance": "{a} and {b} finish their dance.",
+        "line_lap_dance": "{a} is giving {b} a lap dance on a chair.",
+        "end_lap_dance": "{a} finishes the lap dance for {b}.",
+        "line_solo_dance": "{a} is dancing for {b}, who sits on a chair and watches.",
+        "end_solo_dance": "{a} stops dancing for {b}."
+    }
+}

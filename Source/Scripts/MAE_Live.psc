@@ -139,8 +139,8 @@ Event OnConversationEnded()
 EndEvent
 
 Event OnThreadEnd(string asEventName, string asArg, float afThreadID, Form akSender)
-	lastActs = ""
 	If (afThreadID as int) == sceneThread
+		lastActs = ""
 		sceneThread = -1
 		SendSummary()
 	EndIf
@@ -258,6 +258,7 @@ Function BeginScene(int aiThreadID, string asPartners)
 	sceneThread = aiThreadID
 	sceneStart = Utility.GetCurrentRealTime()
 	scenePartners = asPartners
+	lastActs = ""
 	sceneActs = new string[16]
 	sceneActors = new Actor[6]
 	climaxCounts = new int[6]
@@ -446,10 +447,27 @@ EndFunction
 ; One clean line for Mantella's memory once the player's scene is over, so the
 ; conversation summary keeps the gist instead of dozens of live lines.
 Function SendSummary()
-	If scenePartners == "" || !ConversationRunning()
+	If scenePartners == "" || !ConversationRunning() || MAE_Text.MinorInTalk()
+		Return
+	EndIf
+	If sceneActs[0] == "" && NoClimax()
+		; A dance, a cuddle or a scene stopped in its intro: no sex for Mantella to remember.
+		AddEvent(WithPlayer(scenePartners) + " finished a scene together; nothing sexual happened.")
 		Return
 	EndIf
 	AddEvent(SummaryLine())
+EndFunction
+
+; True when nobody in the scene climaxed.
+bool Function NoClimax()
+	int i = 0
+	While i < climaxCounts.Length
+		If climaxCounts[i] > 0
+			Return false
+		EndIf
+		i += 1
+	EndWhile
+	Return true
 EndFunction
 
 string Function SummaryLine()
@@ -549,9 +567,10 @@ string Function WithPlayer(string asPartners)
 	Return StringUtil.Substring(asPartners, 0, last) + ", " + StringUtil.Substring(asPartners, last + 5) + " and the player"
 EndFunction
 
-; Names of the non-player actors in a thread the player is part of, or "".
+; Names of the non-player actors in a thread the player is part of, or "". "" for an affection thread: it is not
+; tracked as a scene, so no live lines and no "finished having sex" summary (MAE_Affection tells Mantella itself).
 string Function Partners(int aiThreadID)
-	If MAE_LiveSceneLines.GetValueInt() != 1
+	If MAE_LiveSceneLines.GetValueInt() != 1 || MAE_Text.IsAffectionThread(aiThreadID)
 		Return ""
 	EndIf
 	Actor[] actors = OThread.GetActors(aiThreadID)
@@ -625,7 +644,8 @@ Function SendLine(string asLine, float afCooldown, string asExtra = "", float af
 		Return
 	EndIf
 	MantellaConversation conversation = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
-	If !conversation || !conversation.IsRunning()
+	; Nothing about a scene reaches a conversation with a child in it.
+	If !conversation || !conversation.IsRunning() || MAE_Text.MinorInTalk()
 		Return
 	EndIf
 	AddEvent(asLine)
@@ -657,6 +677,9 @@ EndFunction
 Function AddEvent(string asLine)
 	If MAE_TestMode.GetValueInt() == 1
 		MAE_Text.TestLog("EVENT|" + asLine)
+		Return
+	EndIf
+	If MAE_Text.MinorInTalk()
 		Return
 	EndIf
 	int handle = ModEvent.Create("MantellaAddEvent")

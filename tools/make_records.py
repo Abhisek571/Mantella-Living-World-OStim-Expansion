@@ -16,7 +16,9 @@ Q = {'000820': ('MAE_QuestLive', 'MAE_Live', 'Mantella Living World - OStim live
      '000822': ('MAE_QuestFlows', 'MAE_Flows', 'Mantella Living World - OStim scene flows'),
      '000823': ('MAE_QuestPositions', 'MAE_Positions', 'Mantella Living World - OStim positions'),
      '000824': ('MAE_QuestSetup', 'MAE_Setup', 'Mantella Living World - OStim flow notices'),
-     '000825': ('MAE_QuestAsk', 'MAE_Ask', 'Mantella Living World - OStim scene requests')}
+     '000825': ('MAE_QuestAsk', 'MAE_Ask', 'Mantella Living World - OStim scene requests'),
+     '000826': ('MAE_QuestAffection', 'MAE_Affection', 'Mantella Living World - OStim affection'),
+     '000827': ('MAE_QuestNpc', 'MAE_Npc', 'Mantella Living World - OStim NPC actions')}
 qid = {v[1]: k for k, v in Q.items()}
 PROPS = {
     'MAE_Live': [('Bystander', qid['MAE_Bystander'])] + [(g, gid[g]) for g in
@@ -26,6 +28,8 @@ PROPS = {
     'MAE_Positions': [('Flows', qid['MAE_Flows'])],
     'MAE_Setup': [('Flows', qid['MAE_Flows']), ('MAE_FlowsEnabled', gid['MAE_FlowsEnabled'])],
     'MAE_Ask': [('Positions', qid['MAE_Positions'])] + [(g, gid[g]) for g in ['MAE_AskBeforeScene', 'MAE_TestMode']],
+    'MAE_Affection': [('Ask', qid['MAE_Ask']), ('Live', qid['MAE_Live']), ('Positions', qid['MAE_Positions']), ('MAE_TestMode', gid['MAE_TestMode'])],
+    'MAE_Npc': [('Ask', qid['MAE_Ask']), ('Positions', qid['MAE_Positions']), ('MAE_TestMode', gid['MAE_TestMode'])],
 }
 
 

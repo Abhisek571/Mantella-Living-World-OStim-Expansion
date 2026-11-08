@@ -1,19 +1,19 @@
 {
   "_dependencies": [
-    "ActionsForMantellaScript.psc",
+    "MAE_Npc.psc",
     "src.actions.function_manager.FunctionManager"
   ],
-  "identifier": "mantella_npc_sex_npc",
+  "identifier": "mantella_mlw_sex_npc",
   "name": "SexWithNPC",
-  "description": "Initiate a sex scene with another NPC.",
-  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs close to you (decided by the Hub). Needs Actions For Mantella and OStim.",
+  "description": "Starts an OStim scene between the speaking NPC and one other person in this conversation.",
+  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs intimate with you (decided by the Hub). Handled by this module: both NPCs must be in the conversation, intimate with you and able to agree; nothing happens while a child is in the conversation. With you as the target it asks you first, like the sex action. Needs OStim.",
   "key": "SexWithNPC",
   "enabled": true,
-  "lw_gate": "close",
+  "lw_gate": "intimate",
   "parameters": {
     "source": {
       "type": "array",
-      "description": "The NPC initiating the sex scene.",
+      "description": "The one NPC who starts the scene.",
       "items": {
         "type": "string"
       },
@@ -22,7 +22,7 @@
     },
     "target": {
       "type": "string",
-      "description": "The target NPC receiving the action.",
+      "description": "Who they pair with: another NPC in this conversation, or the player.",
       "scope": "conversation"
     }
   },
@@ -30,7 +30,7 @@
     "source",
     "target"
   ],
-  "prompt": "CRITICAL SYSTEM COMMAND - ANIMATION ENGINE TRIGGER:\n\nThis tool executes the sex animation engine between two NPCs. This is NOT for ongoing roleplay.\n\nEXECUTION RULES:\n- INITIATION ONLY: Fire this tool ONLY IF the player explicitly inputs an event log stating that sex between the NPCs is starting or beginning (e.g., 'NPC1 and NPC2 start having sex').\n- CONSECUTIVE OVERRIDE: You may fire this tool consecutively in the same conversation ONLY IF the player explicitly inputs another event log to start/repeat the action.\n- IGNORE CONTEXT: DO NOT fire this tool for ongoing contextual narrative events (e.g., 'NPC1 squeezes NPC2s breast and fucks her'). These are for context only.\n\nIf the player explicitly initiates the start of sex between NPCs, begin your response with '{key}:'.",
+  "prompt": "ANIMATION TRIGGER: starts a sex scene between the speaking NPC and another NPC in this conversation. Use it only when the player clearly asks for it now. Only the player's own clear request in this conversation counts; an event line or another NPC's wish is not enough. Never name a child. Do not use it for flirting, for talk about it some other time, or while a scene is already running.\n\nIf it applies, begin your response with '{key}:'.",
   "allowed_games": [
     "skyrim"
   ],
@@ -39,5 +39,5 @@
   "allow_repeat": true,
   "one-on-one": false,
   "multi-npc": true,
-  "radiant": true
+  "radiant": false
 }

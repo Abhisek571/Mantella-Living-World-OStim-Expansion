@@ -24,8 +24,11 @@ POSES = ['standing face to face', 'standing from behind', 'carry', 'kneeling', '
          'spooning', 'sixtynine', 'prone', 'doggystyle', 'cowgirl', 'reversecowgirl', 'facesitting']
 FURNITURE_WORDS = ['table', 'bed', 'chair', 'bench', 'wall', 'shelf', 'throne', 'stool', 'counter', 'cookingpot', 'alchemy', 'enchant', 'smithing']
 # Sets with these words in their name never go into flows (props, restraints, creatures, test scenes).
+# Stages with these OStim actions never go into flows either, whatever the name says.
+EXCLUDE_ACTIONS = {'sleeping', 'unconscious', 'vampirebite', 'vampirebiting'}
 EXCLUDE_WORDS = ['test', 'tied', 'choke', 'riekling', 'creature', 'rune', 'spear', 'levitation', 'armbinder', 'cuffed', 'wheel',
-                 'gloryhole', 'glory hole', 'stuck', 'stocks', 'pillory', 'drunk', 'sleeping', 'unconscious',
+                 'gloryhole', 'glory hole', 'stuck', 'stocks', 'pillory', 'drunk', 'sleep', 'unconscious', 'forc',
+                 'vampire', 'devour',
                  'hypnosis', 'hypnotiz', 'mind control', 'slave', 'thrall', 'enthrall',
                  # after-the-climax idles would play mid-scene
                  'post-climax', 'postclimax', 'post climax',
@@ -283,7 +286,7 @@ class Library:
 
     def excluded(self, sid):
         text = (str(self.data[sid].get('name', '')) + ' ' + sid).lower()
-        return any(w in text for w in EXCLUDE_WORDS)
+        return any(w in text for w in EXCLUDE_WORDS) or bool(self.actions(sid) & EXCLUDE_ACTIONS)
 
     def furniture(self, sid):
         j = self.data[sid]
@@ -359,7 +362,8 @@ def build_sets(lib, pack):
         sets.append({'pack': pack, 'pose': collections.Counter(lib.pose(m) for m in order).most_common(1)[0][0],
                      'act': act, 'rank': RANK[act], 'furniture': collections.Counter(lib.furniture(m) for m in order).most_common(1)[0][0],
                      'theme': collections.Counter(lib.theme(m) for m in order).most_common(1)[0][0],
-                     'excluded': any(lib.excluded(m) for m in order),
+                     # one dom or aggressive stage is enough: the set's most common mood can hide it
+                     'excluded': any(lib.excluded(m) or lib.theme(m)[3] == 'dom' for m in order),
                      'label': nice_label(name), 'stages': [lib.real_id[m] for m in order]})
     return sets
 

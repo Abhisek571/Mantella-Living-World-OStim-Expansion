@@ -110,11 +110,7 @@ string Function CommentLine(Actor[] akCandidates, string asPartners, float afRol
 		Return ""
 	EndIf
 	string name = chosen.GetDisplayName()
-	string their = "his"
-	If chosen.GetActorBase().GetSex() == 1
-		their = "her"
-	EndIf
-	Return name + " is in the conversation but not in the scene, watching from the side and waiting " + their + " turn. After " + asPartners + " reacts, " + name + " makes one short, offhand remark, then lets them carry on."
+	Return name + " is in the conversation but not in the scene, watching from the side. After " + asPartners + " reacts, " + name + " makes one short, offhand remark, then lets them carry on."
 EndFunction
 
 ; 0.25 at arousal 0 to 0.50 at arousal 100 by default: with the one-climax gap,

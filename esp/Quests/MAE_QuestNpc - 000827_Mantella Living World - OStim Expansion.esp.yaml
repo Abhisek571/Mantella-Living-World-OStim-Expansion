@@ -1,0 +1,25 @@
+FormKey: 000827:Mantella Living World - OStim Expansion.esp
+EditorID: MAE_QuestNpc
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MAE_Npc
+    Properties:
+    - MutagenObjectType: ScriptObjectProperty
+      Name: Ask
+      Object: 000825:Mantella Living World - OStim Expansion.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MAE_TestMode
+      Object: 000811:Mantella Living World - OStim Expansion.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: Positions
+      Object: 000823:Mantella Living World - OStim Expansion.esp
+    - MutagenObjectType: ScriptObjectProperty
+      Name: PlayerRef
+      Object: 000014:Skyrim.esm
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Mantella Living World - OStim NPC actions
+Flags:
+- StartGameEnabled
+NextAliasID: 0
