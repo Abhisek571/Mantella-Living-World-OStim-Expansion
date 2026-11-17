@@ -8,6 +8,7 @@ Every change to Mantella Living World - OStim Expansion. The Nexus page lists on
 - The NPC decides: the sex, group sex and sex between NPCs actions carry the NPC's own decision (accept or decline) and a short reason. A decline starts nothing; it shows on screen, is told back to the NPCs in the talk and is remembered with the talk. A no between two NPCs names the other person only when they are an adult in the conversation. Accept goes on as before, Yes/No box included. Works with the Integration Hub's Intimacy setting: NPC decides (the default) offers the scene to every adult; Lovers only keeps the old rule.
 
 ### Changed
+- Direct AI Connect's Setup Backend.cmd now builds the flows too when this module is installed. Build Flows.cmd stays, for after you add or remove animation packs.
 - Change position and rate favourite positions are offered only while that NPC is in an OStim scene (kisses, hugs and dances do not count), instead of with every talk. The NPC's file says so: set when a scene starts, cleared when it ends, and checked again after a load, at a talk's end and whenever someone joins a talk, so it cannot stay on. Needs an Integration Hub that knows this; with an older Hub these two actions are not offered at all.
 - Shorter descriptions for the Affection, ChangePosition, RateFavoritePositions, Undress and Redress actions (less text sent to the model on every reply; same rules). The sex actions are unchanged.
 
