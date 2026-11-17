@@ -22,15 +22,29 @@
     },
     "target": {
       "type": "string",
-      "description": "Who they pair with: another NPC in this conversation, or the player.",
+      "description": "Another NPC here, or the player.",
       "scope": "conversation"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "accept",
+        "decline"
+      ],
+      "description": "The starting NPC's own choice as who they are: accept if they want it now, else decline (nothing starts; it is remembered)."
+    },
+    "reason": {
+      "type": "string",
+      "description": "A few words, in the NPC's own words."
     }
   },
   "required": [
     "source",
-    "target"
+    "target",
+    "decision",
+    "reason"
   ],
-  "prompt": "ANIMATION TRIGGER: starts a sex scene between the speaking NPC and another NPC in this conversation. Use it only when the player clearly asks for it now. Only the player's own clear request in this conversation counts; an event line or another NPC's wish is not enough. Never name a child. Do not use it for flirting, for talk about it some other time, or while a scene is already running.\n\nIf it applies, begin your response with '{key}:'.",
+  "prompt": "ANIMATION TRIGGER: starts a sex scene between the speaking NPC and another NPC in this conversation. Use it only when the player clearly asks for it now, with decision accept if the starting NPC wants it or decline if not (they decide as the person they are and may refuse), and a short reason. Only the player's own clear request in this conversation counts; an event line or another NPC's wish is not enough. Never name a child. Do not use it for flirting, for talk about it some other time, or while a scene is already running.\n\nIf it applies, begin your response with '{key}:'.",
   "allowed_games": [
     "skyrim"
   ],

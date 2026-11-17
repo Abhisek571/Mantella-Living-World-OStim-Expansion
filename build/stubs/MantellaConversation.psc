@@ -4,6 +4,8 @@ bool Function GetIsTalking()
 EndFunction
 Function AddExtraRequestAction(string extraAction)
 EndFunction
+Function AddIngameEvent(string eventText)
+EndFunction
 function RequestContinueConversation(bool updateInGameEvents = false)
 endFunction
 

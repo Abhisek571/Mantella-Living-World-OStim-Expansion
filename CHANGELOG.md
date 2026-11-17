@@ -2,6 +2,26 @@
 
 Every change to Mantella Living World - OStim Expansion. The Nexus page lists only the main changes for each version.
 
+## Unreleased
+
+### New
+- The NPC decides: the sex, group sex and sex between NPCs actions carry the NPC's own decision (accept or decline) and a short reason. A decline starts nothing; it shows on screen, is told back to the NPCs in the talk and is remembered with the talk. A no between two NPCs names the other person only when they are an adult in the conversation. Accept goes on as before, Yes/No box included. Works with the Integration Hub's Intimacy setting: NPC decides (the default) offers the scene to every adult; Lovers only keeps the old rule.
+
+### Changed
+- Change position and rate favourite positions are offered only while that NPC is in an OStim scene (kisses, hugs and dances do not count), instead of with every talk. The NPC's file says so: set when a scene starts, cleared when it ends, and checked again after a load, at a talk's end and whenever someone joins a talk, so it cannot stay on. Needs an Integration Hub that knows this; with an older Hub these two actions are not offered at all.
+- Shorter descriptions for the Affection, ChangePosition, RateFavoritePositions, Undress and Redress actions (less text sent to the model on every reply; same rules). The sex actions are unchanged.
+
+### Fixed
+- A scene with the player that ends while no Mantella conversation is running (started from another mod's dialogue, for example) is no longer forgotten: each partner is told about it, with how long ago, when she next joins a talk. More than three such scenes are not lost: the oldest are counted and told as more scenes before these.
+- A wary stranger is no longer told which affection (a kiss, a hug, a dance) they could share with you right now; only NPCs close to you, Always willing ones, or someone who said yes to a scene with you today are.
+- A scene that ended with no conversation going on now comes with its game time, so the Integration Hub dates it and places it after the dialogue that led to it.
+- Rating favourite positions now says plainly that the choice is never spoken; the reply carries on with the scene.
+- With the Integration Hub, a scene that ended with no conversation going on is kept until the Hub has stored it, and sent again at each talk until then; a talk that ended early no longer loses it. Without the Hub it is sent once, as before.
+- A scene longer than a minute was described as lasting "minuteS".
+- Undress never leaves an NPC unable to dress: anyone still undressed is dressed again when the talk or the scene ends, and after a load.
+- A talk between NPCs no longer hears about the player's scenes or favourite positions, and kept scenes wait for the player's own talk.
+- The affection kinds an NPC can share are worked out once per pair of sexes and scene library, not for every NPC who joins.
+
 ## 1.2.0 (2026-11-09)
 
 ### New

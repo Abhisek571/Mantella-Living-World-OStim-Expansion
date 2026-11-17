@@ -8,6 +8,8 @@ nobody navigates, and this script's own timer ends it: OStim's SetDuration can't
 A sex request during it (MAE_Ask) ends it first, then the Ask First box comes after OStim's restart gap.
 The kinds in stringList "intimate_kinds" (the lap dance and the dance from a chair) need the Hub's intimate standing:
 for anyone else they are neither picked nor named in the fact.
+Also keeps the NPC file's "scene" field (the Hub's "scene" gate): 1 while she is in an OStim scene that is not
+affection, else 0, so the position and rating actions are offered only during a scene (see SceneThread).
 On its own quest: SKSE keeps one mod event registration per object.}
 
 Actor Property PlayerRef Auto
@@ -31,6 +33,9 @@ string Property HUB_PLUGIN = "Mantella Living World - Integration Hub.esp" AutoR
 string Property KEY_KINDS_OPEN = "MAE_AffectionKindsOpen" AutoReadOnly
 string Property KEY_KINDS = "MAE_AffectionKinds" AutoReadOnly
 string Property KEY_KINDS_INTIMATE = "MAE_AffectionKindsIntimate" AutoReadOnly
+; StorageUtil: the thread of the scene she is marked in (on the NPC), and everyone marked (on this quest).
+string Property KEY_SCENE_THREAD = "MAE_SceneThread" AutoReadOnly
+string Property LIST_IN_SCENE = "MAE_InScene" AutoReadOnly
 float Property DEFAULT_SECONDS = 30.0 AutoReadOnly
 ; A start that never reached ostim_thread_start (actors walk together first, often 45 s) stops blocking after this.
 float Property START_TIMEOUT = 240.0 AutoReadOnly
@@ -86,6 +91,9 @@ EndEvent
 
 ; Writes the gate and a fact naming the kinds that would work with her here (chairs counted as they are now).
 Event OnNpcAdded(Form akActor)
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Affection,OnNpcAdded_start,\n", true, false)
+	EndIf
 	Actor npc = akActor as Actor
 	If !npc || npc == PlayerRef
 		Return
@@ -93,17 +101,22 @@ Event OnNpcAdded(Form akActor)
 	If MAE_Text.IsChildActor(npc)
 		StorageUtil.SetStringValue(npc, KEY_KINDS, "")
 		StorageUtil.SetStringValue(npc, KEY_KINDS_INTIMATE, "")
-	Else
+	ElseIf MAE_Text.PlayerInTalk()  ; a radiant talk between NPCs offers no affection
 		AvailableKinds(npc)
 	EndIf
 	; Also here: OnInit has already run on a save made before this event was added.
 	RegisterForModEvent("MLW_RefreshNpc", "OnRefreshNpc")
+	SweepScenes()
 	LockFile()
 	string path = GateFile(npc)
 	WriteFact(npc, path)
+	SetScene(npc, SceneThread(npc), path)  ; from OStim's state now, so a value left from an earlier scene can't stay on
 	JsonUtil.Save(path)
 	fileLock = false
-	Log("GATE|" + npc.GetDisplayName() + "|" + JsonUtil.GetIntValue(path, "affection", 0) + "|" + KindsFor(npc))
+	Log("GATE|" + npc.GetDisplayName() + "|" + JsonUtil.GetIntValue(path, "affection", 0) + "|" + KindsFor(npc) + "|scene=" + JsonUtil.GetIntValue(path, "scene", -1))
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Affection,OnNpcAdded_end,\n", true, false)
+	EndIf
 EndEvent
 
 ; Closeness may be set after the join (Arousal's own NPC_Added handler, then MLW_RefreshNpc): the fact follows it.
@@ -142,7 +155,9 @@ string Function KindsFor(Actor akNpc)
 EndFunction
 
 ; The gate and the fact follow her standing, which may change mid-talk; the fact names only the kinds her standing
-; allows, like the action, and expires today. True when the file changed.
+; allows, like the action, and expires today. The fact (the line the model reads) is only for someone close to the
+; player, Always willing, or who accepted a scene today (MAE_Ask): a wary stranger is never told what affection she
+; "could share right now". True when the file changed.
 bool Function WriteFact(Actor akNpc, string asPath)
 	string kinds = KindsFor(akNpc)
 	bool changed = false
@@ -152,7 +167,7 @@ bool Function WriteFact(Actor akNpc, string asPath)
 	EndIf
 	string old = JsonUtil.GetStringValue(asPath, "fact_affection", "")
 	string fact = ""
-	If kinds != ""
+	If kinds != "" && FactFor(akNpc)
 		int today = Utility.GetCurrentGameTime() as int
 		fact = today + "|" + today + "|1|Affection you and the player could share right now: " + kinds + "."
 	EndIf
@@ -166,6 +181,14 @@ bool Function WriteFact(Actor akNpc, string asPath)
 	Return true
 EndFunction
 
+; Close to the player (the Hub's standing), Always willing, or accepted a scene with the player today.
+bool Function FactFor(Actor akNpc)
+	If Ask.IsClose(akNpc) || StorageUtil.GetIntValue(akNpc, "MLW_Intimate", 0) == 1
+		Return true
+	EndIf
+	Return StorageUtil.GetIntValue(akNpc, "MAE_AcceptedDay", -1) == Utility.GetCurrentGameTime() as int
+EndFunction
+
 ; The listed names of every kind with an installed scene for this pair, e.g. "a kiss, a hug and cuddling", stored on
 ; her as KEY_KINDS (without the intimate kinds) and KEY_KINDS_INTIMATE (with them); returns the one for her standing
 ; now. A kind with scenes for one of them only says who, e.g. "(only you do it)".
@@ -173,6 +196,17 @@ string Function AvailableKinds(Actor akNpc)
 	string[] all = OLibrary.GetAllScenes()
 	bool chair = false
 	bool chairChecked = false
+	; the same for every pair of these sexes while the scene library and a free chair nearby stay the same: worked out
+	; once, not for every NPC who joins
+	chair = FreeFurniture("chair") != None
+	chairChecked = true
+	string cache = "MAE_KindsCache_" + akNpc.GetLeveledActorBase().GetSex() + "_" + PlayerRef.GetLeveledActorBase().GetSex() + "_" + all.Length + "_" + (chair as int)
+	If StorageUtil.HasStringValue(None, cache + "_close")
+		StorageUtil.SetStringValue(akNpc, KEY_KINDS_OPEN, StorageUtil.GetStringValue(None, cache + "_open"))
+		StorageUtil.SetStringValue(akNpc, KEY_KINDS, StorageUtil.GetStringValue(None, cache + "_close"))
+		StorageUtil.SetStringValue(akNpc, KEY_KINDS_INTIMATE, StorageUtil.GetStringValue(None, cache + "_intimate"))
+		Return KindsFor(akNpc)
+	EndIf
 	int count = JsonUtil.StringListCount(LIST_FILE, "kinds")
 	string[] names = new string[16]
 	int[] level = new int[16]  ; 0 open to anyone, 1 close, 2 intimate
@@ -210,6 +244,9 @@ string Function AvailableKinds(Actor akNpc)
 	StorageUtil.SetStringValue(akNpc, KEY_KINDS_OPEN, KindList(names, level, found, 0))
 	StorageUtil.SetStringValue(akNpc, KEY_KINDS, KindList(names, level, found, 1))
 	StorageUtil.SetStringValue(akNpc, KEY_KINDS_INTIMATE, KindList(names, level, found, 2))
+	StorageUtil.SetStringValue(None, cache + "_open", KindList(names, level, found, 0))
+	StorageUtil.SetStringValue(None, cache + "_close", KindList(names, level, found, 1))
+	StorageUtil.SetStringValue(None, cache + "_intimate", KindList(names, level, found, 2))
 	Return KindsFor(akNpc)
 EndFunction
 
@@ -739,6 +776,7 @@ EndFunction
 Event OnThreadStart(string asEventName, string asArg, float afThreadID, Form akSender)
 	int id = afThreadID as int
 	If !OThread.HasMetadata(id, METADATA)
+		MarkScene(id)
 		Return
 	EndIf
 	thread = id
@@ -770,6 +808,7 @@ EndEvent
 Event OnThreadEnd(string asEventName, string asArg, float afThreadID, Form akSender)
 	float now = Utility.GetCurrentRealTime()
 	StorageUtil.SetFloatValue(None, MAE_Text.KeySceneEnded(), now)
+	ClearScene(afThreadID as int)
 	If (afThreadID as int) != thread || (!starting && !started)
 		Return
 	EndIf
@@ -816,6 +855,7 @@ EndFunction
 Event OnConversationEnded()
 	talkEnds += 1
 	afterEnd = ""
+	SweepScenes()
 	If starting
 		stopOnStart = true
 	ElseIf started && OThread.IsRunning(thread) && OThread.HasMetadata(thread, METADATA)
@@ -830,7 +870,101 @@ Event OnMenuClose(string asMenuName)
 	If (starting || started) && !OActor.IsInOStim(PlayerRef)
 		Forget()
 	EndIf
+	SweepScenes()
 EndEvent
+
+; ---------------------------------------------------------------------------
+; In a scene: the NPC file's "scene" field
+; ---------------------------------------------------------------------------
+; Set when a thread that is not affection starts, cleared when it ends; position and stage changes keep the thread, so
+; the value holds through the scene. A scene that never sends its end (a save loaded mid-scene, a thread that broke)
+; is cleared by SweepScenes after a load, at a talk's end and on every join, and each join writes the value from
+; OStim's state at that moment.
+
+; The thread of her scene now; -1 when she is in none or only in an affection scene.
+int Function SceneThread(Actor akActor)
+	If !akActor || !OActor.IsInOStim(akActor)
+		Return -1
+	EndIf
+	int id = OActor.GetThreadID(akActor)
+	If id < 0 || MAE_Text.IsAffectionThread(id)
+		Return -1
+	EndIf
+	Return id
+EndFunction
+
+; Marks her on the actor and sets the field in her file (the caller holds the file lock and saves); true if it changed.
+bool Function SetScene(Actor akNpc, int aiThread, string asPath)
+	TrackScene(akNpc, aiThread)
+	int value = (aiThread >= 0) as int
+	If JsonUtil.GetIntValue(asPath, "scene", -1) == value
+		Return false
+	EndIf
+	JsonUtil.SetIntValue(asPath, "scene", value)
+	Return true
+EndFunction
+
+; From a thread's start or end: her file is written only if it exists (she has talked; a scene among strangers makes
+; no files) and the value changed. A join writes it anyway.
+Function UpdateScene(Actor akNpc, int aiThread)
+	string path = GateFile(akNpc)
+	LockFile()
+	If !JsonUtil.JsonExists(path)
+		TrackScene(akNpc, aiThread)
+	ElseIf SetScene(akNpc, aiThread, path)
+		JsonUtil.Save(path)
+	EndIf
+	fileLock = false
+EndFunction
+
+Function TrackScene(Actor akNpc, int aiThread)
+	If aiThread >= 0
+		StorageUtil.SetIntValue(akNpc, KEY_SCENE_THREAD, aiThread)
+		StorageUtil.FormListAdd(self, LIST_IN_SCENE, akNpc, false)
+	Else
+		StorageUtil.UnsetIntValue(akNpc, KEY_SCENE_THREAD)
+		StorageUtil.FormListRemove(self, LIST_IN_SCENE, akNpc, true)
+	EndIf
+EndFunction
+
+Function MarkScene(int aiThread)
+	Actor[] actors = OThread.GetActors(aiThread)
+	int i = 0
+	While actors && i < actors.Length
+		If actors[i] && actors[i] != PlayerRef
+			UpdateScene(actors[i], aiThread)
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+; The thread's actors may already be gone when its end arrives: everyone marked with this thread is cleared.
+Function ClearScene(int aiThread)
+	int i = StorageUtil.FormListCount(self, LIST_IN_SCENE)
+	While i > 0
+		i -= 1
+		Actor npc = StorageUtil.FormListGet(self, LIST_IN_SCENE, i) as Actor
+		If !npc
+			StorageUtil.FormListRemoveAt(self, LIST_IN_SCENE, i)
+		ElseIf StorageUtil.GetIntValue(npc, KEY_SCENE_THREAD, -1) == aiThread
+			UpdateScene(npc, -1)
+		EndIf
+	EndWhile
+EndFunction
+
+; Everyone marked who is no longer in a scene is cleared.
+Function SweepScenes()
+	int i = StorageUtil.FormListCount(self, LIST_IN_SCENE)
+	While i > 0
+		i -= 1
+		Actor npc = StorageUtil.FormListGet(self, LIST_IN_SCENE, i) as Actor
+		If !npc
+			StorageUtil.FormListRemoveAt(self, LIST_IN_SCENE, i)
+		ElseIf SceneThread(npc) < 0
+			UpdateScene(npc, -1)
+		EndIf
+	EndWhile
+EndFunction
 
 Function Forget()
 	starting = false

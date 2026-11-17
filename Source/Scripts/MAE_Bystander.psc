@@ -28,6 +28,9 @@ Event OnInit()
 EndEvent
 
 Event OnNpcAdded(Form akActor)
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Bystander,OnNpcAdded_start,\n", true, false)
+	EndIf
 	Actor npc = akActor as Actor
 	If !npc || npc == PlayerRef || MAE_Text.IsChildActor(npc)
 		Return
@@ -42,6 +45,9 @@ Event OnNpcAdded(Form akActor)
 	If i >= 0
 		talkers[i] = npc
 		sinceComment[i] = MIN_CLIMAX_GAP
+	EndIf
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Bystander,OnNpcAdded_end,\n", true, false)
 	EndIf
 EndEvent
 

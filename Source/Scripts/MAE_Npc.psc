@@ -16,6 +16,8 @@ string Property ACTION_REDRESS = "mantella_mlw_redress" AutoReadOnly
 string Property ACTION_SEX_NPC = "mantella_mlw_sex_npc" AutoReadOnly
 ; StorageUtil form list on the NPC: what Undress took off.
 string Property KEY_UNDRESSED = "MAE_Undressed" AutoReadOnly
+; StorageUtil form list on this quest: everyone Undress took clothes from, until Redress puts them back.
+string Property KEY_UNDRESSED_ACTORS = "MAE_UndressedActors" AutoReadOnly
 int Property NEED_CLOSE = 1 AutoReadOnly
 int Property NEED_INTIMATE = 2 AutoReadOnly
 
@@ -63,12 +65,24 @@ Event OnSexNpcAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 	If !conversation || names.Length == 0
 		Return
 	EndIf
+	string targetName = SKSE_HTTP.getString(aiArguments, "target", "")
+	Actor target = MAE_Text.TalkActor(conversation, targetName)
+	; The NPC's own no (the action's decision): nothing starts, and the player and the talk hear why. The target is
+	; named only when it is checked like an accept's: an adult in the conversation (its game name, never the model's
+	; text). Anyone else (a child, someone not in the talk, a misspelling) is not named.
+	string what = "sex"
+	If target == PlayerRef || targetName == ""
+		what = "sex with the player"
+	ElseIf target && !MAE_Text.IsChildActor(target)
+		what = "sex with " + target.GetDisplayName()
+	EndIf
+	If Ask.Declined(akSpeaker, akConversation, aiArguments, 1, what)
+		Return
+	EndIf
 	Actor source = Allowed(conversation, names[0], akSpeaker, NEED_INTIMATE)
 	If !source
 		Return
 	EndIf
-	string targetName = SKSE_HTTP.getString(aiArguments, "target", "")
-	Actor target = MAE_Text.TalkActor(conversation, targetName)
 	If target == PlayerRef
 		; With the player it is the sex action: the Ask First box decides.
 		Actor[] npcs = new Actor[1]
@@ -162,13 +176,15 @@ EndFunction
 
 ; Takes off every playable piece worn in the 32 body slots and keeps it on the NPC for Redress.
 Function Undress(Actor akNpc)
+	RegisterCleanup()
+	StorageUtil.FormListAdd(self, KEY_UNDRESSED_ACTORS, akNpc, false)
 	int slot = 0
 	int count = 0
 	While slot < 32
 		Form worn = akNpc.GetWornForm(Math.LeftShift(1, slot))
 		If worn && worn.IsPlayable() && StorageUtil.FormListFind(akNpc, KEY_UNDRESSED, worn) < 0
 			StorageUtil.FormListAdd(akNpc, KEY_UNDRESSED, worn, false)
-			akNpc.UnequipItem(worn, true, true)
+			akNpc.UnequipItem(worn, false, true)  ; never blocked from dressing again
 			count += 1
 		EndIf
 		slot += 1
@@ -188,7 +204,42 @@ Function Redress(Actor akNpc)
 		i += 1
 	EndWhile
 	StorageUtil.FormListClear(akNpc, KEY_UNDRESSED)
+	StorageUtil.FormListRemove(self, KEY_UNDRESSED_ACTORS, akNpc, true)
 	Log("REDRESS|" + akNpc.GetDisplayName() + "|" + count)
+EndFunction
+
+; Nobody is left undressed: when the talk ends (unless they are in a scene), when a scene ends (unless they are still
+; in the talk), and after a load (everyone, left from an earlier session). Registered by the first Undress, so saves
+; made before this existed get it too.
+Function RegisterCleanup()
+	RegisterForModEvent("MantellaConversation_Ended", "OnTalkEnded")
+	RegisterForModEvent("ostim_thread_end", "OnSceneEnded")
+	RegisterForMenu("Loading Menu")
+EndFunction
+
+Event OnTalkEnded()
+	RedressLeftovers(true, false)
+EndEvent
+
+Event OnSceneEnded(string asEventName, string asArg, float afThreadID, Form akSender)
+	RedressLeftovers(false, true)
+EndEvent
+
+Event OnMenuClose(string asMenuName)  ; Loading Menu: a door keeps a running talk or scene; a loaded save has neither
+	RedressLeftovers(true, true)
+EndEvent
+
+Function RedressLeftovers(bool abSkipInScene, bool abSkipInTalk)
+	int i = StorageUtil.FormListCount(self, KEY_UNDRESSED_ACTORS)
+	While i > 0
+		i -= 1
+		Actor npc = StorageUtil.FormListGet(self, KEY_UNDRESSED_ACTORS, i) as Actor
+		If !npc
+			StorageUtil.FormListRemoveAt(self, KEY_UNDRESSED_ACTORS, i)
+		ElseIf !(abSkipInScene && OActor.IsInOStim(npc)) && !(abSkipInTalk && MAE_Text.InTalk(npc))
+			Redress(npc)
+		EndIf
+	EndWhile
 EndFunction
 
 Function Log(string asLine)

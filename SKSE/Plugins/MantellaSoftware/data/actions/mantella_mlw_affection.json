@@ -1,7 +1,7 @@
 {
     "identifier": "mantella_mlw_affection",
     "name": "Affection",
-    "description": "Share a short moment of affection with the player, played as an animation. Clothes stay on and it ends by itself after a little while. Kinds: kiss (on the lips), neck_kiss (one kisses the other's neck), hand_kiss (one kisses the other's hand), hold_hands, hug (an embrace), cuddle, head_pat (one strokes the other's head), dance (a couple dance together), lap_dance (one dances on the lap of the other, who sits on a chair; needs a free chair close by), solo_dance (one dances for the other, who watches from a chair; needs a free chair close by). Only the kinds named in what you know for certain work with this pair here. Use it when the player asks for or offers one of these and the speaking NPC is willing, or when the speaking NPC offers it and it fits their mood and personality. The speaking NPC may say no instead.",
+    "description": "A short affection animation with the player (clothes stay on, ends by itself), when one of them asks or offers and the NPC is willing (they may say no). Only kinds your known facts say work for this pair. lap_dance (on the seated other's lap) and solo_dance (for the other, watching from a chair) need a free chair near.",
     "note": "Needs OStim, Mantella Living World - OStim Expansion and Mantella's Advanced Actions on. Offered only to close NPCs, and only when one of the listed animations is installed for the pair. No box asks first. Clothes stay on.",
     "key": "Affection",
     "parameters": {
@@ -19,7 +19,7 @@
                 "lap_dance",
                 "solo_dance"
             ],
-            "description": "What they do, exactly one of: kiss, neck_kiss, hand_kiss, hold_hands, hug, cuddle, head_pat, dance, lap_dance, solo_dance."
+            "description": "dance is as a couple."
         },
         "who": {
             "type": "string",
@@ -27,7 +27,7 @@
                 "npc",
                 "player"
             ],
-            "description": "Who does it, for neck_kiss, hand_kiss, head_pat, lap_dance and solo_dance: npc (the speaking NPC, the default) or player."
+            "description": "Who does it (neck_kiss, hand_kiss, head_pat, lap_dance, solo_dance): npc (default) or player."
         }
     },
     "required": [

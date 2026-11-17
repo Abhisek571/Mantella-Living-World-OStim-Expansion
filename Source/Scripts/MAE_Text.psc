@@ -40,6 +40,28 @@ bool Function PlayerCanConsent() Global
 	Return !playerRace || (playerRace != werewolf && (!vampireLord || playerRace != vampireLord))
 EndFunction
 
+; The player is in Mantella's running conversation (radiant talks between NPCs get no scene lines).
+bool Function PlayerInTalk() Global
+	MantellaConversation talk = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
+	Return talk && talk.IsRunning() && talk.IsPlayerInConversation()
+EndFunction
+
+; This actor is in Mantella's running conversation now (a missed Ended event leaves stale state otherwise).
+bool Function InTalk(Actor akActor) Global
+	MantellaConversation talk = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
+	If !akActor || !talk || !talk.IsRunning()
+		Return false
+	EndIf
+	int i = talk.CountActorsInConversation()
+	While i > 0
+		i -= 1
+		If talk.GetActorInConversationByIndex(i) == akActor
+			Return true
+		EndIf
+	EndWhile
+	Return false
+EndFunction
+
 ; A child is somewhere in the running Mantella conversation.
 bool Function MinorInTalk() Global
 	MantellaConversation conversation = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation

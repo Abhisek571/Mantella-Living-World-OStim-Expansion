@@ -1,6 +1,7 @@
 Scriptname MAE_Ask extends Quest
-{Mantella's sex and group sex actions with the player land here: a box asks the player Yes, No or Skip before
-anything starts. Skip fades to black, lets time pass and records the scene as done: Mantella hears it, arousal and
+{Mantella's sex and group sex actions with the player land here. The NPC decides first (the action's decision and
+reason): a decline starts nothing and is shown and remembered (Declined). On accept a box asks the player Yes, No or
+Skip before anything starts. Skip fades to black, lets time pass and records the scene as done: Mantella hears it, arousal and
 climax counts move. Nothing goes through OStim's climax event, since other mods react to that one with effects
 meant for a running scene, so Lover's Ledger and favourite positions don't count a skipped scene.
 On its own quest: SKSE keeps one mod event registration per object.}
@@ -21,6 +22,8 @@ float Property SKIP_AROUSAL_CHANGE = -50.0 AutoReadOnly
 float Property SKIP_BLACK_SECONDS = 2.0 AutoReadOnly
 ; A box left open longer than this no longer blocks a new request (a save made with one open).
 float Property ASK_TIMEOUT = 120.0 AutoReadOnly
+; The longest reason a decline shows (HUD line and event line).
+int Property REASON_MAX = 120 AutoReadOnly
 
 bool asking = false
 float askedAt = 0.0
@@ -35,18 +38,103 @@ Event OnInit()
 EndEvent
 
 Event OnSexAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
+	If Declined(akSpeaker, akConversation, aiArguments, 1, "sex with the player")
+		Return
+	EndIf
 	Actor[] npcs = Resolve(akSpeaker, akConversation, aiArguments, 1)
+	MarkAccepted(npcs)
 	If npcs.Length == 1
 		Request(npcs)
 	EndIf
 EndEvent
 
 Event OnGroupAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
+	If Declined(akSpeaker, akConversation, aiArguments, MAX_NPCS, "group sex with the player")
+		Return
+	EndIf
 	Actor[] npcs = Resolve(akSpeaker, akConversation, aiArguments, MAX_NPCS)
+	MarkAccepted(npcs)
 	If npcs.Length >= 2
 		Request(npcs)
 	EndIf
 EndEvent
+
+; They said yes to a scene with the player today: from now on today they are told which affection they could share
+; (MAE_Affection.FactFor).
+Function MarkAccepted(Actor[] akNpcs)
+	int today = Utility.GetCurrentGameTime() as int
+	int i = 0
+	While akNpcs && i < akNpcs.Length
+		If akNpcs[i]
+			StorageUtil.SetIntValue(akNpcs[i], "MAE_AcceptedDay", today)
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+; The scene actions carry the NPC's own decision ("accept" or "decline") and a short reason. A decline starts nothing
+; and is a real result: a HUD line for the player and an event line the NPCs in the talk hear, which goes into their
+; memory with the rest of the talk (MLW_Notify.Result). Anything but "decline" (an older Mantella with no decision, or
+; keyword actions) goes on as before: the checks and the player's Yes/No box. Nothing is said with a child in the talk.
+bool Function Declined(Form akSpeaker, Form akConversation, int aiArguments, int aiMax, string asWhat)
+	If SKSE_HTTP.getString(aiArguments, "decision", "") != "decline"
+		Return false
+	EndIf
+	If MAE_Text.MinorInTalk()
+		Log("DECLINED|a child is in the conversation")
+		Return true
+	EndIf
+	MantellaConversation conversation = akConversation as MantellaConversation
+	string[] names = SKSE_HTTP.getStringArray(aiArguments, "source")
+	Actor[] found = PapyrusUtil.ActorArray(aiMax)
+	int count = 0
+	int i = 0
+	While conversation && names && i < names.Length && count < aiMax
+		Actor npc = MAE_Text.TalkActor(conversation, names[i])
+		If npc && npc != PlayerRef && found.Find(npc) < 0 && !MAE_Text.IsChildActor(npc)
+			found[count] = npc
+			count += 1
+		EndIf
+		i += 1
+	EndWhile
+	string who = Names(PapyrusUtil.ResizeActorArray(found, count))
+	If who == "" && (akSpeaker as Actor) && (akSpeaker as Actor) != PlayerRef
+		who = (akSpeaker as Actor).GetDisplayName()
+	EndIf
+	If who == ""
+		Return true
+	EndIf
+	string reason = Reason(aiArguments)
+	string hud = who + " said no."
+	string fact = "(" + who + " said no to " + asWhat + ".)"
+	If reason != ""
+		hud = who + " said no: " + reason
+		fact = "(" + who + " said no to " + asWhat + ": " + reason + ".)"
+	EndIf
+	Log("DECLINED|" + who + "|" + reason)
+	MLW_Notify.Result(hud, fact)
+	Return true
+EndFunction
+
+; The action's reason, trimmed of spaces and a final full stop, at most REASON_MAX characters.
+string Function Reason(int aiArguments)
+	string text = SKSE_HTTP.getString(aiArguments, "reason", "")
+	int n = StringUtil.GetLength(text)
+	While n > 0 && (StringUtil.GetNthChar(text, n - 1) == " " || StringUtil.GetNthChar(text, n - 1) == ".")
+		n -= 1
+	EndWhile
+	int start = 0
+	While start < n && StringUtil.GetNthChar(text, start) == " "
+		start += 1
+	EndWhile
+	If n - start > REASON_MAX
+		n = start + REASON_MAX
+	EndIf
+	If n <= start
+		Return ""
+	EndIf
+	Return StringUtil.Substring(text, start, n - start)
+EndFunction
 
 ; The action's "source" names as conversation members, up to aiMax and without the player, doubles or anyone not
 ; intimate with the player; the speaker when none resolves and the speaker is intimate.

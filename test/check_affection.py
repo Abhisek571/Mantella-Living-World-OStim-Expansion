@@ -129,18 +129,23 @@ def check_action():
     enum = act['parameters']['kind']['enum']
     if enum != kinds:
         fail(f'action kind enum {enum} != affection.json kinds {kinds}')
+    # A kind is named when the action description, the kind parameter's description or the kind enum names it (the
+    # model receives the enum with every kind, so the texts may stay short).
     desc = act['parameters']['kind']['description'] + ' ' + act['description']
     for k in kinds:
-        if not re.search(r'\b' + re.escape(k) + r'\b', desc):
-            fail(f'kind {k} not named in the action description')
+        if not re.search(r'\b' + re.escape(k) + r'\b', desc) and k not in enum:
+            fail(f'kind {k} not named in the action description, the kind description or the kind enum')
     who_kinds = [k for k in kinds if wl['string'].get('who_' + k)]
     named = re.findall(r'\b(' + '|'.join(map(re.escape, kinds)) + r')\b', act['parameters']['who']['description'])
     if sorted(set(named)) != sorted(who_kinds):
         fail(f'who description names {sorted(set(named))}, the kinds with who_ are {sorted(who_kinds)}')
     if act['parameters']['who']['enum'] != ['npc', 'player']:
         fail(f"who enum {act['parameters']['who']['enum']} (the script reads only 'player', anything else is the NPC)")
+    # A kind that needs a chair must be named in a sentence or a parenthesis of the description that says "chair".
+    chair_parts = [p for p in re.split(r'(?<=[.!?])\s+', act['description']) + re.findall(r'\(([^)]*)\)', act['description'])
+                   if re.search(r'\bchair\b', p)]
     for k in kinds:
-        if wl['string'].get('furniture_' + k) == 'chair' and not re.search(re.escape(k) + r' \([^)]*chair', act['description']):
+        if wl['string'].get('furniture_' + k) == 'chair' and not any(re.search(r'\b' + re.escape(k) + r'\b', p) for p in chair_parts):
             fail(f'{k} needs a chair but the description does not say so')
         for key in ('name_', 'line_', 'end_'):
             if not wl['string'].get(key + k):

@@ -13,7 +13,7 @@
   "parameters": {
     "source": {
       "type": "array",
-      "description": "Each NPC in this conversation who undresses.",
+      "description": "NPCs here who undress.",
       "items": {
         "type": "string"
       },

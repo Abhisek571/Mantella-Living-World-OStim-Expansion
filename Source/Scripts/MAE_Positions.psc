@@ -129,12 +129,15 @@ string Function FavouritesLine(Actor akActor)
 EndFunction
 
 Event OnNpcAdded(Form akActor)
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Positions,OnNpcAdded_start,\n", true, false)
+	EndIf
 	Actor npc = akActor as Actor
 	If !npc || npc == PlayerRef || !Flows.Built() || MAE_Text.IsChildActor(npc)
 		Return
 	EndIf
 	Register()  ; saves made before the scene-start event existed never ran OnInit again
-	If MAE_Text.MinorInTalk()
+	If MAE_Text.MinorInTalk() || !MAE_Text.PlayerInTalk()
 		Return
 	EndIf
 	string line = FavouritesLine(npc)
@@ -143,6 +146,9 @@ Event OnNpcAdded(Form akActor)
 	EndIf
 	If line != ""
 		AddMantellaEvent(line)
+	EndIf
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Positions,OnNpcAdded_end,\n", true, false)
 	EndIf
 EndEvent
 
@@ -168,7 +174,7 @@ string Function UnratedLine(Actor akActor)
 	If StorageUtil.GetIntValue(akActor, KEY_RATED, 0) != 0
 		Return ""
 	EndIf
-	Return akActor.GetDisplayName() + "'s favourite sex positions have not been rated yet."
+	Return akActor.GetDisplayName() + "'s favourite sex positions have not been rated yet. Give them only in the RateFavoritePositions action: never say, hint at or list them, or mention this note; the spoken reply goes on with the scene as usual."
 EndFunction
 
 ; Mantella's one-time rating from her personality: up to three position names, comma separated.

@@ -57,6 +57,16 @@ float Property SPEED_LINE_GAP = 8.0 AutoReadOnly
 ; Mantella quiet about outfits from the player's scene start until its quiet time after the scene ends.
 string Property HUB_PLUGIN = "Mantella Living World - Integration Hub.esp" AutoReadOnly
 string Property QUIET_REASON = "ostim" AutoReadOnly
+; A scene that ended with no Mantella talk running (live test 12: two scenes with Gerdur before any talk began) is kept
+; on each partner, "<game time>|<summary line>", and told to the next talk she joins. At most MAX_PENDING per partner.
+string Property KEY_PENDING = "MAE_PendingScenes" AutoReadOnly
+; Past MAX_PENDING the oldest is not lost: it is counted here and told as "and N earlier times".
+string Property KEY_PENDING_EARLIER = "MAE_PendingScenesEarlier" AutoReadOnly
+int Property MAX_PENDING = 3 AutoReadOnly
+; With the Integration Hub a kept scene is sent at every talk the partner joins until the Hub has stored it in a memory
+; (it lists "<name>|<scene time>" here); a talk that ends early no longer loses it (live test 16). Without the Hub it is
+; sent once, as before.
+string Property ACK_PATH = "MantellaLivingWorld/scene_ack.json" AutoReadOnly
 
 Event OnInit()
 	Register()
@@ -71,7 +81,103 @@ Function Register()
 	RegisterForModEvent("MantellaConversation_Ended", "OnConversationEnded")
 	RegisterForModEvent("ostim_prestart", "OnPreStart")
 	RegisterForModEvent("MLW_ReportRequest", "OnReportRequest")
+	RegisterForModEvent("MantellaConversation_NPC_Added", "OnNpcAdded")
 	RegisterForMenu("Loading Menu")
+EndFunction
+
+; A partner joins a talk: the scenes she had with the player while no talk was running are told now, oldest first,
+; with how long ago. Kept while a child is in the talk (nothing about a scene reaches it).
+Event OnNpcAdded(Form akActor)
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Live,OnNpcAdded_start,\n", true, false)
+	EndIf
+	Actor npc = akActor as Actor
+	If !npc || npc == PlayerRef || StorageUtil.StringListCount(npc, KEY_PENDING) == 0 || MAE_Text.MinorInTalk() || !MAE_Text.PlayerInTalk()
+		Return  ; kept for her next talk with the player (never told to a radiant talk between NPCs)
+	EndIf
+	int earlier = StorageUtil.GetIntValue(npc, KEY_PENDING_EARLIER, 0)
+	If earlier > 0
+		AddEvent("Earlier still, with no conversation going on: " + npc.GetDisplayName() + " and the player had " + earlier + " more scene(s) together before these.")
+		StorageUtil.UnsetIntValue(npc, KEY_PENDING_EARLIER)
+	EndIf
+	bool hub = Game.IsPluginInstalled(HUB_PLUGIN)
+	If hub
+		DropStored(npc)
+		If StorageUtil.StringListCount(npc, KEY_PENDING) == 0
+			Return
+		EndIf
+	EndIf
+	float now = Utility.GetCurrentGameTime()
+	int i = 0
+	While i < StorageUtil.StringListCount(npc, KEY_PENDING)
+		string entry = StorageUtil.StringListGet(npc, KEY_PENDING, i)
+		int bar = StringUtil.Find(entry, "|")
+		If bar > 0
+			; {t=<game time>} lets the Integration Hub date the scene and pair it with the dialogue before it (taken out there)
+			AddEvent("Earlier (" + AgoText(now - (StringUtil.Substring(entry, 0, bar) as float)) + "), with no conversation going on: " + StringUtil.Substring(entry, bar + 1) + " {t=" + StringUtil.Substring(entry, 0, bar) + "}")
+		EndIf
+		i += 1
+	EndWhile
+	If !hub
+		StorageUtil.StringListClear(npc, KEY_PENDING)
+	EndIf
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Live,OnNpcAdded_end,\n", true, false)
+	EndIf
+EndEvent
+
+; The kept scenes of this partner that the Integration Hub has stored: no longer sent.
+Function DropStored(Actor akNpc)
+	JsonUtil.Unload(ACK_PATH, false)  ; the Hub writes the file outside the game: read it fresh
+	string name = akNpc.GetDisplayName()
+	int i = StorageUtil.StringListCount(akNpc, KEY_PENDING)
+	While i > 0
+		i -= 1
+		string entry = StorageUtil.StringListGet(akNpc, KEY_PENDING, i)
+		int bar = StringUtil.Find(entry, "|")
+		If bar > 0 && JsonUtil.StringListFind(ACK_PATH, "stored", name + "|" + StringUtil.Substring(entry, 0, bar)) >= 0
+			StorageUtil.StringListRemoveAt(akNpc, KEY_PENDING, i)
+		EndIf
+	EndWhile
+EndFunction
+
+; "less than an hour ago", "about 3 hours ago", "2 days ago" for a span of game days.
+string Function AgoText(float afDays)
+	If afDays < 0.0
+		afDays = 0.0
+	EndIf
+	int hours = Math.Floor(afDays * 24.0 + 0.5)
+	If hours < 1
+		Return "less than an hour ago"
+	ElseIf hours < 24
+		If hours == 1
+			Return "about an hour ago"
+		EndIf
+		Return "about " + hours + " hours ago"
+	EndIf
+	int days = Math.Floor(afDays + 0.5)
+	If days <= 1
+		Return "a day ago"
+	EndIf
+	Return days + " days ago"
+EndFunction
+
+; The summary of a scene that ended with no talk running, kept on each partner for her next talk.
+Function KeepForLater(string asLine)
+	string entry = Utility.GetCurrentGameTime() + "|" + asLine
+	int i = 0
+	While i < sceneActors.Length
+		Actor partner = sceneActors[i]
+		If partner && partner != PlayerRef && !MAE_Text.IsChildActor(partner)
+			StorageUtil.StringListAdd(partner, KEY_PENDING, entry)
+			While StorageUtil.StringListCount(partner, KEY_PENDING) > MAX_PENDING
+				StorageUtil.StringListRemoveAt(partner, KEY_PENDING, 0)
+				StorageUtil.AdjustIntValue(partner, KEY_PENDING_EARLIER, 1)  ; counted, never silently lost
+			EndWhile
+		EndIf
+		i += 1
+	EndWhile
+	TestLog("KEPT|" + asLine)
 EndFunction
 
 ; The player's scene is about to start (before the undress): quiet Mantella about outfits.
@@ -447,15 +553,22 @@ EndFunction
 ; One clean line for Mantella's memory once the player's scene is over, so the
 ; conversation summary keeps the gist instead of dozens of live lines.
 Function SendSummary()
-	If scenePartners == "" || !ConversationRunning() || MAE_Text.MinorInTalk()
+	If scenePartners == ""
 		Return
 	EndIf
+	string line = SummaryLine()
 	If sceneActs[0] == "" && NoClimax()
 		; A dance, a cuddle or a scene stopped in its intro: no sex for Mantella to remember.
-		AddEvent(WithPlayer(scenePartners) + " finished a scene together; nothing sexual happened.")
+		line = WithPlayer(scenePartners) + " finished a scene together; nothing sexual happened."
+	EndIf
+	If !ConversationRunning()
+		KeepForLater(line)  ; no talk to tell: her next talk is told (OnNpcAdded)
 		Return
 	EndIf
-	AddEvent(SummaryLine())
+	If MAE_Text.MinorInTalk()
+		Return
+	EndIf
+	AddEvent(line)
 EndFunction
 
 ; True when nobody in the scene climaxed.
@@ -477,11 +590,11 @@ string Function SummaryLine()
 		line += " in " + here.GetName()
 	EndIf
 	int minutes = Math.Floor((Utility.GetCurrentRealTime() - sceneStart) / 60.0 + 0.5)
-	If minutes >= 1
-		line += " after about " + minutes + " minute"
-		If minutes > 1
-			line += "s"
-		EndIf
+	; whole words: Papyrus keeps one copy of strings that differ only in case, so a lone "s" came out as "S" (live test 17)
+	If minutes > 1
+		line += " after about " + minutes + " minutes"
+	ElseIf minutes == 1
+		line += " after about 1 minute"
 	EndIf
 	line += "."
 	string acts = ""
