@@ -16,6 +16,8 @@ int Property SCORE_SCENE = 1 AutoReadOnly
 int Property SCORE_CLIMAX = 3 AutoReadOnly
 int Property SCORE_RATED = 5 AutoReadOnly
 int Property TOP = 3 AutoReadOnly
+string Property KEY_RATE_TRIES = "MAE_PosesRateTries" AutoReadOnly
+int Property RATE_TRIES = 3 AutoReadOnly  ; ratings with no known position name before she is no longer asked
 
 int lastPose = -1
 ; The scene last told that its positions are picked in OStim's own menu (once per scene).
@@ -184,15 +186,21 @@ Event OnRateAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 		Return
 	EndIf
 	string[] names = PapyrusUtil.StringSplit(SKSE_HTTP.getString(aiArguments, "positions", ""), ",")
+	int matched = 0
 	int i = 0
 	While i < names.Length && i < TOP
 		int pose = JsonUtil.StringListFind(CATALOGUE, "poses", Trim(names[i]))
 		If pose >= 0
 			StorageUtil.AdjustIntValue(npc, KEY_SCORE + pose, SCORE_RATED)
+			matched += 1
 		EndIf
 		i += 1
 	EndWhile
-	StorageUtil.SetIntValue(npc, KEY_RATED, 1)
+	; no name in the catalogue: asked again next scene, at most RATE_TRIES times (never left with no favourites for good)
+	If matched > 0 || StorageUtil.AdjustIntValue(npc, KEY_RATE_TRIES, 1) >= RATE_TRIES
+		StorageUtil.SetIntValue(npc, KEY_RATED, 1)
+		StorageUtil.UnsetIntValue(npc, KEY_RATE_TRIES)
+	EndIf
 EndEvent
 
 ; ---------------------------------------------------------------------------

@@ -13,6 +13,9 @@ Every change to Mantella Living World - OStim Expansion. The Nexus page lists on
 - Shorter descriptions for the Affection, ChangePosition, RateFavoritePositions, Undress and Redress actions (less text sent to the model on every reply; same rules). The sex actions are unchanged.
 
 ### Fixed
+- A scene decision other than accept ("no", "refuse") is now a decline. Before, only the exact word decline counted as no.
+- Rating favourite positions with no position name that matches is asked again at the next scene (up to three times), instead of leaving the favourites empty for good.
+- SexWithNPC is between two NPCs only; its text no longer offers the player as the target (SexWithPlayer is for that).
 - Build Flows names the Mod Organizer 2 profile it reads (the one last selected in Mod Organizer 2) and how to pick another. A copy that is not enabled in that profile builds nothing (Direct AI Connect's setup then uses an enabled copy).
 - A scene with the player that ends while no Mantella conversation is running (started from another mod's dialogue, for example) is no longer forgotten: each partner is told about it, with how long ago, when she next joins a talk. More than three such scenes are not lost: the oldest are counted and told as more scenes before these.
 - A wary stranger is no longer told which affection (a kiss, a hug, a dance) they could share with you right now; only NPCs close to you, Always willing ones, or someone who said yes to a scene with you today are.

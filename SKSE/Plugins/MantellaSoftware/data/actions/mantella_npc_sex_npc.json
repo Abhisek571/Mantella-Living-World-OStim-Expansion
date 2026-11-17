@@ -5,7 +5,7 @@
   ],
   "identifier": "mantella_mlw_sex_npc",
   "name": "SexWithNPC",
-  "description": "Starts an OStim scene between the speaking NPC and one other person in this conversation.",
+  "description": "Starts an OStim scene between the speaking NPC and one other NPC in this conversation.",
   "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs intimate with you (decided by the Hub). Handled by this module: both NPCs must be in the conversation, intimate with you and able to agree; nothing happens while a child is in the conversation. With you as the target it asks you first, like the sex action. Needs OStim.",
   "key": "SexWithNPC",
   "enabled": true,
@@ -22,7 +22,7 @@
     },
     "target": {
       "type": "string",
-      "description": "Another NPC here, or the player.",
+      "description": "Another NPC here, never the player.",
       "scope": "conversation"
     },
     "decision": {

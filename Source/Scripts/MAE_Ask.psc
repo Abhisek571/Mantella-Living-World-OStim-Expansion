@@ -74,10 +74,12 @@ EndFunction
 
 ; The scene actions carry the NPC's own decision ("accept" or "decline") and a short reason. A decline starts nothing
 ; and is a real result: a HUD line for the player and an event line the NPCs in the talk hear, which goes into their
-; memory with the rest of the talk (MLW_Notify.Result). Anything but "decline" (an older Mantella with no decision, or
-; keyword actions) goes on as before: the checks and the player's Yes/No box. Nothing is said with a child in the talk.
+; memory with the rest of the talk (MLW_Notify.Result). Only "accept" or no decision at all (an older Mantella, or
+; keyword actions) goes on: the checks and the player's Yes/No box. Any other word ("no", "refuse") is a decline.
+; Nothing is said with a child in the talk.
 bool Function Declined(Form akSpeaker, Form akConversation, int aiArguments, int aiMax, string asWhat)
-	If SKSE_HTTP.getString(aiArguments, "decision", "") != "decline"
+	string decision = SKSE_HTTP.getString(aiArguments, "decision", "")
+	If decision == "" || decision == "accept"
 		Return false
 	EndIf
 	If MAE_Text.MinorInTalk()

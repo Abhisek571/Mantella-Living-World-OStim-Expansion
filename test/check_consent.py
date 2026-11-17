@@ -256,8 +256,10 @@ def decisions():
         body = function(ask, ev)
         check(0 <= body.find('Declined(') < body.find('Resolve('), f'{ev}: a decline is handled before anything resolves')
     dec = function(ask, 'Declined')
-    check('getString(aiArguments, "decision", "") != "decline"' in dec and 'Return false' in dec,
-          'only "decline" declines; no decision (keyword actions, an older Mantella) goes on as before')
+    go_on = re.search(r'string decision = SKSE_HTTP\.getString\(aiArguments, "decision", ""\)\s+'
+                      r'If decision == "" \|\| decision == "accept"\s+Return false', dec)
+    check(bool(go_on) and '!= "decline"' not in dec,
+          'only "accept" or no decision (keyword actions, an older Mantella) goes on; "no", "refuse" or any other word declines')
     check('MAE_Text.MinorInTalk()' in dec and dec.find('MAE_Text.MinorInTalk()') < dec.find('MLW_Notify.Result('),
           'nothing is said about it with a child in the talk')
     check('MAE_Text.IsChildActor(npc)' in dec and 'MAE_Text.TalkActor(' in dec, 'a decline names conversation members only, never a child')
@@ -328,6 +330,20 @@ def scene_without_talk():
           and added.find('AddEvent(') < added.find('StringListClear'), 'OnNpcAdded: told with how long ago, then cleared; kept while a child is in the talk')
 
 
+def rating_and_target():
+    """RatePositions marked her rated even when no name matched the catalogue (favourites empty for good), and
+    SexWithNPC offered "the player" as a target while its prompt and SexWithPlayer say otherwise."""
+    print("== a rating with no known position is asked again; SexWithNPC is NPC to NPC")
+    rate = function(code(os.path.join(SCRIPTS, 'MAE_Positions.psc')), 'OnRateAdvanced')
+    check('matched += 1' in rate and 'If matched > 0 || StorageUtil.AdjustIntValue(npc, KEY_RATE_TRIES, 1) >= RATE_TRIES' in rate
+          and rate.find('If matched > 0') < rate.find('StorageUtil.SetIntValue(npc, KEY_RATED, 1)'),
+          'OnRateAdvanced: rated only when a name matched, or after RATE_TRIES tries')
+    d = json.load(open(os.path.join(ACTIONS, 'mantella_npc_sex_npc.json'), encoding='utf-8'))
+    target = d['parameters']['target']['description'].lower()
+    check('never the player' in target and 'or the player' not in target and 'other person' not in d['description'],
+          'SexWithNPC: the target is another NPC, never the player (SexWithPlayer is for that)')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--afm', default=os.path.join(os.path.dirname(REPO), 'ActionsForMantella-OStim'))
@@ -345,6 +361,7 @@ def main():
     control_chars()
     hub_intimacy(a.hub)
     scene_without_talk()
+    rating_and_target()
     print(f'\n{len(fails)} failures')
     sys.exit(1 if fails else 0)
 
