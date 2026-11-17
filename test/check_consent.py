@@ -314,7 +314,7 @@ def scene_without_talk():
     live = code(os.path.join(SCRIPTS, 'MAE_Live.psc'))
     summary = function(live, 'SendSummary')
     keep, run, minor = summary.find('KeepForLater(line)'), summary.find('!ConversationRunning()'), summary.find('MAE_Text.MinorInTalk()')
-    check(0 <= run < keep < minor, 'SendSummary: with no talk running the line is kept (before the child-in-talk check, which needs a talk)')
+    check(0 <= run < keep and 0 <= minor < keep and 'AddEvent(line)' in summary[keep:], 'SendSummary: with no talk running (or a child in it) the line is kept, else told')
     later = function(live, 'KeepForLater')
     check('!MAE_Text.IsChildActor(partner)' in later and 'partner != PlayerRef' in later and 'MAX_PENDING' in later
           and 'StorageUtil.StringListRemoveAt(partner, KEY_PENDING, 0)' in later
@@ -344,6 +344,46 @@ def rating_and_target():
           'SexWithNPC: the target is another NPC, never the player (SexWithPlayer is for that)')
 
 
+def scene_results():
+    """A radiant talk nearby heard the player's scene lines; a child who joined while the box was open heard the No or
+    Skip line; an accepted action that started nothing told the model nothing; the accept day was stamped before any
+    check; a repeated SexWithNPC reported a failure while the first one's scene ran; the kinds cache outlived an update."""
+    print('== scene lines and results')
+    live = code(os.path.join(SCRIPTS, 'MAE_Live.psc'))
+    check('MAE_Text.PlayerInTalk()' in function(live, 'ConversationRunning') and 'IsRunning()' not in function(live, 'ConversationRunning'),
+          'MAE_Live.ConversationRunning means a talk the player is in')
+    check('!MAE_Text.PlayerInTalk()' in function(live, 'SendLine'), 'MAE_Live.SendLine sends nothing to a talk the player is not in')
+    summary = function(live, 'SendSummary')
+    check(re.search(r'If !ConversationRunning\(\) \|\| MAE_Text\.MinorInTalk\(\)\s*KeepForLater\(line\)', summary) is not None,
+          'SendSummary keeps the summary for her next talk with the player when the talk is radiant or has a child')
+    ask = code(os.path.join(SCRIPTS, 'MAE_Ask.psc'))
+    req = function(ask, 'RequestScene')
+    box, yes = req.find('Ask(akNpcs)'), req.find('If answer == "Yes"')
+    child = req.find('MAE_Text.MinorInTalk()', box)
+    check(box < child < yes, 'RequestScene checks for a child after the box for every answer, before the Yes branch')
+    for ev in ('OnSexAdvanced', 'OnGroupAdvanced'):
+        body = function(ask, ev)
+        check('NothingStarts(' in body, f'{ev}: an accept that resolves nobody is told to the talk')
+        check('MarkAccepted' not in body, f'{ev}: an accept alone marks nothing')
+    check('Named(akConversation, aiArguments)' in function(ask, 'OnGroupAdvanced') and 'abNamePeople' in req,
+          'a group start with someone left out names who takes part')
+    check('NothingStarts(' in function(ask, 'Request'), 'Request: a request while the box is open is told to the talk')
+    check(req.count('NothingStarts(') >= 2, 'RequestScene: a request during another scene is told to the talk')
+    check('If !MAE_Text.MinorInTalk()' in function(ask, 'NothingStarts'), 'NothingStarts says nothing with a child in the talk')
+    quick = req.find('QuickStart(actors) < 0')
+    check(quick >= 0 and req.find('MarkAccepted(akNpcs)', quick) > quick and req.find('MarkAccepted(akNpcs)') > quick,
+          'the accept day is stamped only after a real start (or Skip)')
+    aff = code(os.path.join(SCRIPTS, 'MAE_Affection.psc'))
+    check('!MAE_Text.PlayerInTalk()' in function(aff, 'RequestScene'), 'MAE_Affection.RequestScene refuses when the player is not in the talk')
+    kinds = function(aff, 'AvailableKinds')
+    check('"intimate_kinds"' in kinds and '"open_kinds"' in kinds and kinds.find('lists') < kinds.find('string cache'),
+          'the kinds cache key carries the kind lists')
+    sex = function(code(os.path.join(SCRIPTS, 'MAE_Npc.psc')), 'OnSexNpcAdvanced')
+    fail = sex.find('QuickStart(actors) < 0')
+    check(fail >= 0 and 0 <= sex.find('OActor.IsInOStim(source) && OActor.IsInOStim(target)', fail) < sex.find('FAILED|QuickStart'),
+          'SexWithNPC: a repeat whose pair is already in a scene reports no failure')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--afm', default=os.path.join(os.path.dirname(REPO), 'ActionsForMantella-OStim'))
@@ -362,6 +402,7 @@ def main():
     hub_intimacy(a.hub)
     scene_without_talk()
     rating_and_target()
+    scene_results()
     print(f'\n{len(fails)} failures')
     sys.exit(1 if fails else 0)
 

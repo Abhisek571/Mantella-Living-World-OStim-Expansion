@@ -561,11 +561,9 @@ Function SendSummary()
 		; A dance, a cuddle or a scene stopped in its intro: no sex for Mantella to remember.
 		line = WithPlayer(scenePartners) + " finished a scene together; nothing sexual happened."
 	EndIf
-	If !ConversationRunning()
-		KeepForLater(line)  ; no talk to tell: her next talk is told (OnNpcAdded)
-		Return
-	EndIf
-	If MAE_Text.MinorInTalk()
+	; no talk with the player (none, or a radiant one between NPCs), or a child in it: her next talk is told (OnNpcAdded)
+	If !ConversationRunning() || MAE_Text.MinorInTalk()
+		KeepForLater(line)
 		Return
 	EndIf
 	AddEvent(line)
@@ -663,12 +661,12 @@ string Function TestSummary(Actor akPartner, int aiPartnerClimaxes, int aiPlayer
 	Return SummaryLine()
 EndFunction
 
+; A talk the player is in: a radiant talk between NPCs nearby never hears about the player's scene.
 bool Function ConversationRunning()
 	If MAE_TestMode.GetValueInt() == 1
 		Return true
 	EndIf
-	MantellaConversation conversation = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
-	Return conversation && conversation.IsRunning()
+	Return MAE_Text.PlayerInTalk()
 EndFunction
 
 ; "Mjoll and the player"; with two partners "Mjoll, Aela and the player" (Partners joins the last name with "and").
@@ -757,8 +755,8 @@ Function SendLine(string asLine, float afCooldown, string asExtra = "", float af
 		Return
 	EndIf
 	MantellaConversation conversation = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
-	; Nothing about a scene reaches a conversation with a child in it.
-	If !conversation || !conversation.IsRunning() || MAE_Text.MinorInTalk()
+	; Nothing about a scene reaches a conversation with a child in it, or one the player is not in.
+	If !conversation || !conversation.IsRunning() || MAE_Text.MinorInTalk() || !MAE_Text.PlayerInTalk()
 		Return
 	EndIf
 	AddEvent(asLine)

@@ -200,7 +200,9 @@ string Function AvailableKinds(Actor akNpc)
 	; once, not for every NPC who joins
 	chair = FreeFurniture("chair") != None
 	chairChecked = true
-	string cache = "MAE_KindsCache_" + akNpc.GetLeveledActorBase().GetSex() + "_" + PlayerRef.GetLeveledActorBase().GetSex() + "_" + all.Length + "_" + (chair as int)
+	; the kind lists are in the key too, so an update that adds, renames or moves a kind is never answered from an old save
+	string lists = PapyrusUtil.StringJoin(JsonUtil.StringListToArray(LIST_FILE, "kinds"), ",") + "|" + PapyrusUtil.StringJoin(JsonUtil.StringListToArray(LIST_FILE, "intimate_kinds"), ",") + "|" + PapyrusUtil.StringJoin(JsonUtil.StringListToArray(LIST_FILE, "open_kinds"), ",")
+	string cache = "MAE_KindsCache_" + akNpc.GetLeveledActorBase().GetSex() + "_" + PlayerRef.GetLeveledActorBase().GetSex() + "_" + all.Length + "_" + (chair as int) + "_" + lists
 	If StorageUtil.HasStringValue(None, cache + "_close")
 		StorageUtil.SetStringValue(akNpc, KEY_KINDS_OPEN, StorageUtil.GetStringValue(None, cache + "_open"))
 		StorageUtil.SetStringValue(akNpc, KEY_KINDS, StorageUtil.GetStringValue(None, cache + "_close"))
@@ -461,6 +463,11 @@ EndFunction
 bool Function RequestScene(Actor akNpc, string asKind, string asWho, float now, int ends)
 	If !akNpc || akNpc == PlayerRef || MAE_Text.IsChildActor(akNpc)
 		Log("REFUSED|no fitting speaker|" + asKind)
+		Return false
+	EndIf
+	; a radiant talk between NPCs never pulls the player, who is not in it, into a scene
+	If MAE_TestMode.GetValueInt() != 1 && !MAE_Text.PlayerInTalk()
+		Log("REFUSED|the player is not in the talk|" + asKind)
 		Return false
 	EndIf
 	If !Ask.IsClose(akNpc) && !OpenKind(asKind)

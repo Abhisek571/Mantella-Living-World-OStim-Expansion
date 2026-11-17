@@ -13,6 +13,13 @@ Every change to Mantella Living World - OStim Expansion. The Nexus page lists on
 - Shorter descriptions for the Affection, ChangePosition, RateFavoritePositions, Undress and Redress actions (less text sent to the model on every reply; same rules). The sex actions are unchanged.
 
 ### Fixed
+- Scene lines, climax lines and the end-of-scene summary go only to a talk the player is in: a radiant talk between NPCs nearby no longer hears them, and the summary is kept for the partner's next talk instead.
+- A child who joins the talk while the Yes/No/Skip box is open hears nothing about the scene, whatever the player answers.
+- An accepted sex action that starts nothing (nobody named is intimate with the player, the box is already open, the player is in another scene) now tells the talk so, and a group scene that starts with fewer people names who takes part.
+- The day an NPC accepted a scene is marked only when the scene really starts or is skipped, not on a No or a failed start.
+- Affection scenes are never started from a radiant talk the player is not in.
+- SexWithNPC sent twice in a row no longer reports a failed start while the first scene runs.
+- The list of affection kinds is worked out again after an update that changes affection.json.
 - A scene decision other than accept ("no", "refuse") is now a decline. Before, only the exact word decline counted as no.
 - Rating favourite positions with no position name that matches is asked again at the next scene (up to three times), instead of leaving the favourites empty for good.
 - SexWithNPC is between two NPCs only; its text no longer offers the player as the target (SexWithPlayer is for that).

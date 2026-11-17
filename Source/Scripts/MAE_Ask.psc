@@ -42,9 +42,10 @@ Event OnSexAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 		Return
 	EndIf
 	Actor[] npcs = Resolve(akSpeaker, akConversation, aiArguments, 1)
-	MarkAccepted(npcs)
 	If npcs.Length == 1
 		Request(npcs)
+	Else
+		NothingStarts("NOBODY|no one named is intimate with the player", "only someone intimate with the player can agree to that.")
 	EndIf
 EndEvent
 
@@ -53,14 +54,45 @@ Event OnGroupAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 		Return
 	EndIf
 	Actor[] npcs = Resolve(akSpeaker, akConversation, aiArguments, MAX_NPCS)
-	MarkAccepted(npcs)
 	If npcs.Length >= 2
-		Request(npcs)
+		; someone named was left out (not intimate with the player, not in the talk): the start names who takes part
+		Request(npcs, false, npcs.Length < Named(akConversation, aiArguments))
+	ElseIf npcs.Length == 1
+		NothingStarts("NOBODY|only " + Names(npcs) + " is intimate with the player", "only " + Names(npcs) + " of those named is close enough to the player for that.")
+	Else
+		NothingStarts("NOBODY|no one named is intimate with the player", "only someone intimate with the player can agree to that.")
 	EndIf
 EndEvent
 
-; They said yes to a scene with the player today: from now on today they are told which affection they could share
-; (MAE_Affection.FactFor).
+; How many different people besides the player the action's "source" names in the talk.
+int Function Named(Form akConversation, int aiArguments)
+	MantellaConversation conversation = akConversation as MantellaConversation
+	string[] names = SKSE_HTTP.getStringArray(aiArguments, "source")
+	Actor[] found = PapyrusUtil.ActorArray(MAX_NPCS)
+	int count = 0
+	int i = 0
+	While conversation && names && i < names.Length && count < MAX_NPCS
+		Actor npc = MAE_Text.TalkActor(conversation, names[i])
+		If npc && npc != PlayerRef && found.Find(npc) < 0
+			found[count] = npc
+			count += 1
+		EndIf
+		i += 1
+	EndWhile
+	Return count
+EndFunction
+
+; An accepted request that starts nothing: Mantella hears why, so the talk never goes on about a scene that did not
+; begin. Nothing is said with a child in the talk.
+Function NothingStarts(string asLog, string asWhy)
+	Log("NOTHING|" + asLog)
+	If !MAE_Text.MinorInTalk()
+		Positions.AddMantellaEvent("Nothing starts: " + asWhy)
+	EndIf
+EndFunction
+
+; A scene with the player really started (or was skipped through) today: from now on today they are told which affection
+; they could share (MAE_Affection.FactFor). Not on a mere accept: a No, a refusal or a failed start marks nothing.
 Function MarkAccepted(Actor[] akNpcs)
 	int today = Utility.GetCurrentGameTime() as int
 	int i = 0
@@ -185,14 +217,16 @@ EndFunction
 
 ; abAfterAffection: the request came during an affection scene, which has ended (MAE_Affection.Grow).
 ; One request at a time from its first check to the start: two at once could both start a scene.
-Function Request(Actor[] akNpcs, bool abAfterAffection = false)
+; abNamePeople: some of the people named were left out, so a start says who takes part.
+Function Request(Actor[] akNpcs, bool abAfterAffection = false, bool abNamePeople = false)
 	float now = Utility.GetCurrentRealTime()
 	If asking && now >= askedAt && now - askedAt < ASK_TIMEOUT
+		NothingStarts("BUSY|another request is being answered", "the player is still answering another request.")
 		Return
 	EndIf
 	asking = true
 	askedAt = now
-	RequestScene(akNpcs, abAfterAffection)
+	RequestScene(akNpcs, abAfterAffection, abNamePeople)
 	If askedAt == now
 		asking = false
 	EndIf
@@ -204,12 +238,14 @@ bool Function Asking()
 	Return asking && now >= askedAt && now - askedAt < ASK_TIMEOUT
 EndFunction
 
-Function RequestScene(Actor[] akNpcs, bool abAfterAffection)
+Function RequestScene(Actor[] akNpcs, bool abAfterAffection, bool abNamePeople = false)
 	MAE_Affection affection = Game.GetFormFromFile(0x000826, "Mantella Living World - OStim Expansion.esp") as MAE_Affection
 	If OActor.IsInOStim(PlayerRef) || (affection && affection.Busy())
 		; During an affection scene with her (or while it is starting) the request goes on once that scene has ended.
 		If akNpcs.Length == 1 && affection && affection.Grow(akNpcs[0])
 			Log("GROW|" + Names(akNpcs))
+		Else
+			NothingStarts("SCENE|the player is already in a scene", "the player is already in another scene.")
 		EndIf
 		Return
 	EndIf
@@ -237,6 +273,12 @@ Function RequestScene(Actor[] akNpcs, bool abAfterAffection)
 		answer = Ask(akNpcs)
 	EndIf
 	Log("ANSWER|" + answer + "|" + Names(akNpcs))
+	; The box can stay open a long time: a child who joined meanwhile hears nothing about a scene, whatever the answer.
+	If answer != "Yes" && MAE_Text.MinorInTalk()
+		Log("REFUSED|a child joined while the box was open")
+		Positions.AddMantellaEvent("Nothing starts: this is no moment for it.")
+		Return
+	EndIf
 	If answer == "Yes"
 		Actor[] actors = PapyrusUtil.ActorArray(akNpcs.Length + 1)
 		actors[0] = PlayerRef
@@ -248,7 +290,7 @@ Function RequestScene(Actor[] akNpcs, bool abAfterAffection)
 		MAE_Text.WaitAfterScene()
 		; The player may have started a scene meanwhile, or the box stayed open past ASK_TIMEOUT.
 		If OActor.IsInOStim(PlayerRef) || (affection && affection.Busy())
-			Log("REFUSED|someone is in a scene")
+			NothingStarts("REFUSED|someone is in a scene", "the player is already in another scene.")
 			Return
 		EndIf
 		i = 0
@@ -268,10 +310,16 @@ Function RequestScene(Actor[] akNpcs, bool abAfterAffection)
 		If OThread.QuickStart(actors) < 0
 			Log("FAILED|QuickStart")
 			Positions.AddMantellaEvent("The scene could not start, so " + Names(akNpcs) + " and the player carry on as they were.")
-		ElseIf abAfterAffection
+			Return
+		EndIf
+		MarkAccepted(akNpcs)
+		If abAfterAffection
 			Positions.AddMantellaEvent(Names(akNpcs) + " is ready now, and they start having sex.")
+		ElseIf abNamePeople
+			Positions.AddMantellaEvent("Only " + Names(akNpcs) + " and the player take part.")
 		EndIf
 	ElseIf answer == "Skip"
+		MarkAccepted(akNpcs)
 		Skip(akNpcs)
 	Else
 		Positions.AddMantellaEvent(Names(akNpcs) + " wanted to start having sex with the player, but the player said no for now.")

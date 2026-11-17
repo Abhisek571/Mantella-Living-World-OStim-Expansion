@@ -113,6 +113,11 @@ Event OnSexNpcAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 	actors[0] = source
 	actors[1] = target
 	If OThread.QuickStart(actors) < 0
+		; the same action twice in a row: the first one's scene is running, so this one has nothing to report
+		If OActor.IsInOStim(source) && OActor.IsInOStim(target)
+			Log("SKIPPED|already in a scene")
+			Return
+		EndIf
 		Log("FAILED|QuickStart")
 		Positions.AddMantellaEvent("The scene could not start, so " + source.GetDisplayName() + " and " + target.GetDisplayName() + " carry on as they were.")
 	Else
