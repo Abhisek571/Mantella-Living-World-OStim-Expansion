@@ -79,6 +79,77 @@ bool Function MinorInTalk() Global
 	Return false
 EndFunction
 
+; Child safety settings (SKSE\Plugins\StorageUtilData\MantellaAdultExpansion\child_settings.json, edited by hand):
+; child_far_distance  game units beyond which a child in the talk counts as far away (default 1024, about 15 m)
+; child_hidden_distance  beyond this, a child neither seeing nor seen by the player counts as far too (behind a wall
+;                     or a door; default 384, 0 = never by sight alone)
+; child_near_distance  children not in the talk within this of the player are named to the model (default 2048)
+string Function ChildSettings() Global
+	Return "MantellaAdultExpansion/child_settings.json"
+EndFunction
+
+float Function ChildSetting(string asKey, float afDefault, float afMin) Global
+	float value = JsonUtil.GetFloatValue(ChildSettings(), asKey, afDefault)
+	If value < afMin
+		Return afMin
+	EndIf
+	Return value
+EndFunction
+
+; A child in the talk who is not physically with the player: not loaded, in another interior cell (another room or
+; building), farther than child_far_distance, or past child_hidden_distance with neither of them in sight of the other.
+bool Function ChildFar(Actor akChild) Global
+	Actor player = Game.GetPlayer()
+	If !akChild || !akChild.Is3DLoaded()
+		Return true
+	EndIf
+	Cell here = player.GetParentCell()
+	Cell there = akChild.GetParentCell()
+	If here != there && ((here && here.IsInterior()) || (there && there.IsInterior()))
+		Return true
+	EndIf
+	float distance = akChild.GetDistance(player)
+	If distance > ChildSetting("child_far_distance", 1024.0, 128.0)
+		Return true
+	EndIf
+	float hidden = ChildSetting("child_hidden_distance", 384.0, 0.0)
+	Return hidden > 0.0 && distance > hidden && !akChild.HasLOS(player) && !player.HasLOS(akChild)
+EndFunction
+
+; Every child in the running talk who is far away (ChildFar) is taken out of it, so the next request to Mantella no
+; longer has them: a child who is not there neither blocks nor hears anything. Only in a talk with the player and at
+; least one adult NPC besides (a talk with only a child in it is left to Mantella). Returns how many were taken out.
+int Function RemoveFarChildren() Global
+	MantellaConversation talk = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
+	If !talk || !talk.IsRunning() || !talk.IsPlayerInConversation()
+		Return 0
+	EndIf
+	Actor player = Game.GetPlayer()
+	int count = talk.CountActorsInConversation()
+	Actor[] far = PapyrusUtil.ActorArray(count)
+	int found = 0
+	bool adult = false
+	int i = 0
+	While i < count
+		Actor member = talk.GetActorInConversationByIndex(i)
+		If member && member != player
+			If !IsChildActor(member)
+				adult = true
+			ElseIf ChildFar(member)
+				far[found] = member
+				found += 1
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	If found == 0 || !adult
+		Return 0
+	EndIf
+	far = PapyrusUtil.ResizeActorArray(far, found)
+	talk.RemoveActorsFromConversation(far)
+	Return found
+EndFunction
+
 ; A name from a Mantella action as a member of the running conversation, never someone merely nearby; the player
 ; also by "player". None when nobody in the talk has that name.
 Actor Function TalkActor(MantellaConversation akConversation, string asName) Global

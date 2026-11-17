@@ -1,0 +1,7 @@
+{
+    "float": {
+        "child_far_distance": 1024.0,
+        "child_hidden_distance": 384.0,
+        "child_near_distance": 2048.0
+    }
+}

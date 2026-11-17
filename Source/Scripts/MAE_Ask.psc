@@ -38,6 +38,7 @@ Event OnInit()
 EndEvent
 
 Event OnSexAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
+	MAE_Text.RemoveFarChildren()  ; a child far away is out of the talk first; one close by still blocks
 	If Declined(akSpeaker, akConversation, aiArguments, 1, "sex with the player")
 		Return
 	EndIf
@@ -50,6 +51,7 @@ Event OnSexAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 EndEvent
 
 Event OnGroupAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
+	MAE_Text.RemoveFarChildren()  ; a child far away is out of the talk first; one close by still blocks
 	If Declined(akSpeaker, akConversation, aiArguments, MAX_NPCS, "group sex with the player")
 		Return
 	EndIf
@@ -343,14 +345,15 @@ string Function Ask(Actor[] akNpcs)
 		; A test that ended without clearing it: never answer for the player outside test mode.
 		testAnswer = ""
 	EndIf
-	string text = Names(akNpcs) + " want to start a scene with you."
+	; names the system and says exactly what each answer does
+	string text = "OStim group scene: " + Names(akNpcs) + " want to have sex with you now.\n\nYes: the OStim scene starts."
 	If akNpcs.Length == 1
-		text = Names(akNpcs) + " wants to start a scene with you."
+		text = "OStim scene: " + Names(akNpcs) + " wants to have sex with you now.\n\nYes: the OStim scene starts."
 	EndIf
 	If PlayerRef.IsInCombat()
-		Return SkyMessage.Show(text, "Yes", "No")
+		Return SkyMessage.Show(text + "\nNo: nothing starts.", "Yes", "No")
 	EndIf
-	Return SkyMessage.Show(text, "Yes", "No", "Skip")
+	Return SkyMessage.Show(text + "\nSkip: fade to black, half an hour passes, and it counts as done.\nNo: nothing starts.", "Yes", "No", "Skip")
 EndFunction
 
 Function Skip(Actor[] akNpcs)

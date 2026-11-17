@@ -91,6 +91,11 @@ Event OnNpcAdded(Form akActor)
 	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
 		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Live,OnNpcAdded_start,\n", true, false)
 	EndIf
+	; the children around this talk are watched from now on (a far child is taken out of it before the next request)
+	MAE_Npc children = Game.GetFormFromFile(0x000827, "Mantella Living World - OStim Expansion.esp") as MAE_Npc
+	If children
+		children.Watch()
+	EndIf
 	Actor npc = akActor as Actor
 	If !npc || npc == PlayerRef || StorageUtil.StringListCount(npc, KEY_PENDING) == 0 || MAE_Text.MinorInTalk() || !MAE_Text.PlayerInTalk()
 		Return  ; kept for her next talk with the player (never told to a radiant talk between NPCs)
@@ -566,7 +571,9 @@ Function SendSummary()
 		KeepForLater(line)
 		Return
 	EndIf
-	AddEvent(line)
+	; told at once with a turn of its own when Mantella waits for the player (live test 18: it only went out with the
+	; player's next line, behind the scene's out-of-date lines, which the Hub now drops)
+	SendLine(line, 0.0)
 EndFunction
 
 ; True when nobody in the scene climaxed.

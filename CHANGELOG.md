@@ -5,6 +5,9 @@ Every change to Mantella Living World - OStim Expansion. The Nexus page lists on
 ## Unreleased
 
 ### New
+- A child in the talk who is far from you (another room or building, farther than about 15 m, or out of sight past about 5 m) is taken out of the talk by the game before your next line goes out: checked every 3 seconds while you talk, when Mantella's text box opens and before every scene action. A child close by still blocks every scene. Distances in SKSE\Plugins\StorageUtilData\MantellaAdultExpansion\child_settings.json.
+- ChildLeaves action: a child in the talk leaves it when you or an adult send them away. Offered only while a child is in the talk.
+- Children near you but not in the talk are told to the Integration Hub, which adds one cautionary line; nothing is blocked.
 - The NPC decides: the sex, group sex and sex between NPCs actions carry the NPC's own decision (accept or decline) and a short reason. A decline starts nothing; it shows on screen, is told back to the NPCs in the talk and is remembered with the talk. A no between two NPCs names the other person only when they are an adult in the conversation. Accept goes on as before, Yes/No box included. Works with the Integration Hub's Intimacy setting: NPC decides (the default) offers the scene to every adult; Lovers only keeps the old rule.
 
 ### Changed
@@ -13,6 +16,8 @@ Every change to Mantella Living World - OStim Expansion. The Nexus page lists on
 - Shorter descriptions for the Affection, ChangePosition, RateFavoritePositions, Undress and Redress actions (less text sent to the model on every reply; same rules). The sex actions are unchanged.
 
 ### Fixed
+- The scene box names the system and what each answer does: "OStim scene: <name> wants to have sex with you now", with Yes, Skip and No explained.
+- The end-of-scene line is told at once with a turn of its own when Mantella waits for you, instead of with your next line.
 - Scene lines, climax lines and the end-of-scene summary go only to a talk the player is in: a radiant talk between NPCs nearby no longer hears them, and the summary is kept for the partner's next talk instead.
 - A child who joins the talk while the Yes/No/Skip box is open hears nothing about the scene, whatever the player answers.
 - An accepted sex action that starts nothing (nobody named is intimate with the player, the box is already open, the player is in another scene) now tells the talk so, and a group scene that starts with fewer people names who takes part.

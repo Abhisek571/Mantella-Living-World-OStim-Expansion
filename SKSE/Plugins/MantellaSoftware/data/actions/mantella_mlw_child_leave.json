@@ -1,0 +1,36 @@
+{
+  "_dependencies": [
+    "MAE_Npc.psc",
+    "src.actions.function_manager.FunctionManager"
+  ],
+  "identifier": "mantella_mlw_child_leave",
+  "name": "ChildLeaves",
+  "description": "The named child leaves the conversation.",
+  "note": "Offered only while a child is in the conversation (the Hub's minor=1 gate). Handled by this module: each named child in the conversation leaves it; adults are never removed by it.",
+  "key": "ChildLeaves",
+  "enabled": true,
+  "lw_gate": "minor=1",
+  "parameters": {
+    "source": {
+      "type": "array",
+      "description": "The children here who leave the conversation.",
+      "items": {
+        "type": "string"
+      },
+      "scope": "conversation"
+    }
+  },
+  "required": [
+    "source"
+  ],
+  "prompt": "The named child leaves the conversation. Use it when the player, or a parent or another adult here, sends the child away (to play, to go home, to leave the grown-ups alone) and the child goes, or when the child decides to run off. Name only children.\n\nIf it applies, begin your response with '{key}:'.",
+  "allowed_games": [
+    "skyrim"
+  ],
+  "requires_response": false,
+  "is-interrupting": false,
+  "allow_repeat": true,
+  "one-on-one": true,
+  "multi-npc": true,
+  "radiant": false
+}

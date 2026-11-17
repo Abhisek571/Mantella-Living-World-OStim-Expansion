@@ -21,10 +21,120 @@ string Property KEY_UNDRESSED_ACTORS = "MAE_UndressedActors" AutoReadOnly
 int Property NEED_CLOSE = 1 AutoReadOnly
 int Property NEED_INTIMATE = 2 AutoReadOnly
 
+string Property ACTION_CHILD_LEAVE = "mantella_mlw_child_leave" AutoReadOnly
+; Children near the player who are not in the talk, for the Integration Hub's line (names, "" when none). Rewritten
+; when it changes and emptied when the talk ends or a save loads.
+string Property NEAR_FILE = "MantellaLivingWorld/children_near.json" AutoReadOnly
+; How often the children around a talk with the player are checked (seconds), and again whenever Mantella's text box
+; opens, so a far child is out of the talk before the player's line goes out.
+float Property WATCH_SECONDS = 3.0 AutoReadOnly
+
+float watchTick = -1000.0
+string nearNames = "-"
+
 Event OnInit()
+	Register()
+EndEvent
+
+; Run again at every join (Watch), so saves made before the child watch existed get it too.
+Function Register()
 	RegisterForModEvent("MantellaConversation_Advanced_Action_" + ACTION_UNDRESS, "OnUndressAdvanced")
 	RegisterForModEvent("MantellaConversation_Advanced_Action_" + ACTION_REDRESS, "OnRedressAdvanced")
 	RegisterForModEvent("MantellaConversation_Advanced_Action_" + ACTION_SEX_NPC, "OnSexNpcAdvanced")
+	RegisterForModEvent("MantellaConversation_Advanced_Action_" + ACTION_CHILD_LEAVE, "OnChildLeaveAdvanced")
+	RegisterForMenu("CustomMenu")  ; Mantella's text box (UIExtensions' UITextEntryMenu)
+	RegisterForMenu("Loading Menu")
+EndFunction
+
+; ---------------------------------------------------------------------------
+; Children around a talk with the player
+; ---------------------------------------------------------------------------
+
+; MAE_Live.OnNpcAdded: someone joined a talk. While the player is in it, the children around it are checked every
+; WATCH_SECONDS: a child in the talk who is far away is taken out of it (MAE_Text.RemoveFarChildren), and children
+; nearby who are not in it are written for the Hub's line.
+Function Watch()
+	Register()
+	float now = Utility.GetCurrentRealTime()
+	; a tick missed for long (a save loaded, the game relaunched: real time starts at zero again) starts the watch anew
+	If now >= watchTick && now - watchTick < WATCH_SECONDS * 3.0
+		Return
+	EndIf
+	CheckChildren()
+EndFunction
+
+Event OnUpdate()
+	CheckChildren()
+EndEvent
+
+Function CheckChildren()
+	If !MAE_Text.PlayerInTalk()
+		watchTick = -1000.0
+		WriteNear("")
+		Return
+	EndIf
+	watchTick = Utility.GetCurrentRealTime()
+	int removed = MAE_Text.RemoveFarChildren()
+	If removed > 0
+		Log("CHILD FAR|" + removed + " child(ren) taken out of the talk")
+	EndIf
+	WriteNear(NearChildren())
+	RegisterForSingleUpdate(WATCH_SECONDS)
+EndFunction
+
+; The children near the player (child_near_distance) who are not in the talk, by name.
+string Function NearChildren()
+	ObjectReference[] near = PO3_SKSEFunctions.FindAllReferencesOfFormType(PlayerRef, 62, MAE_Text.ChildSetting("child_near_distance", 2048.0, 0.0))
+	string names = ""
+	int i = 0
+	While near && i < near.Length
+		Actor npc = near[i] as Actor
+		If npc && npc != PlayerRef && !npc.IsDead() && !npc.IsDisabled() && MAE_Text.IsChildActor(npc) && !MAE_Text.InTalk(npc)
+			names = MAE_Text.ListAdd(names, npc.GetDisplayName(), false)
+		EndIf
+		i += 1
+	EndWhile
+	Return names
+EndFunction
+
+Function WriteNear(string asNames)
+	If asNames == nearNames
+		Return
+	EndIf
+	nearNames = asNames
+	JsonUtil.SetStringValue(NEAR_FILE, "names", asNames)
+	JsonUtil.Save(NEAR_FILE)
+EndFunction
+
+Event OnMenuOpen(string asMenuName)
+	; Mantella's text box: the line typed there goes out without the far child; nothing when no talk is watched
+	If asMenuName == "CustomMenu" && watchTick > 0.0
+		CheckChildren()
+	EndIf
+EndEvent
+
+; The model's way to send a child out of the talk when the player (or an adult) tells them to go: every named child in
+; the talk leaves it. Adults are never removed by it.
+Event OnChildLeaveAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
+	MantellaConversation conversation = akConversation as MantellaConversation
+	string[] names = Sources(akSpeaker, aiArguments)
+	Actor[] going = PapyrusUtil.ActorArray(names.Length)
+	int count = 0
+	int i = 0
+	While conversation && i < names.Length
+		Actor npc = MAE_Text.TalkActor(conversation, names[i])
+		If npc && npc != PlayerRef && MAE_Text.IsChildActor(npc) && going.Find(npc) < 0
+			going[count] = npc
+			count += 1
+		EndIf
+		i += 1
+	EndWhile
+	If count == 0
+		Log("CHILD LEAVE|nobody named is a child in the talk")
+		Return
+	EndIf
+	Log("CHILD LEAVE|" + count)
+	conversation.RemoveActorsFromConversation(PapyrusUtil.ResizeActorArray(going, count))
 EndEvent
 
 Event OnUndressAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
@@ -140,6 +250,7 @@ EndFunction
 
 ; True (and Mantella hears why) while a child is in the conversation.
 bool Function MinorPresent()
+	MAE_Text.RemoveFarChildren()  ; a child far away is out of the talk first; one close by still blocks
 	If !MAE_Text.MinorInTalk()
 		Return false
 	EndIf
@@ -231,7 +342,14 @@ Event OnSceneEnded(string asEventName, string asArg, float afThreadID, Form akSe
 EndEvent
 
 Event OnMenuClose(string asMenuName)  ; Loading Menu: a door keeps a running talk or scene; a loaded save has neither
+	If asMenuName != "Loading Menu"
+		Return
+	EndIf
 	RedressLeftovers(true, true)
+	If !MAE_Text.PlayerInTalk()
+		nearNames = "-"  ; the file may hold another session's names: always rewritten empty
+		WriteNear("")
+	EndIf
 EndEvent
 
 Function RedressLeftovers(bool abSkipInScene, bool abSkipInTalk)

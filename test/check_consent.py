@@ -20,6 +20,11 @@
    before anything resolves or starts, is shown and told to the talk, and says nothing with a child in the talk.
 10. No control characters in the sources (a backspace once stood in a regex where a word boundary was meant).
 11. The Hub's intimate standing checks for a child first, in every Intimacy mode.
+12. A child far from the player (another interior cell, past the far distance, or out of sight past the hidden
+    distance) is taken out of the talk: every few seconds while the player talks, when Mantella's text box opens, and
+    before every scene action; one close by still blocks. ChildLeaves removes only children and is offered only while
+    a child is in the talk; children nearby but not in the talk are written for the Hub's line; the distances are
+    settings with defaults; the scene box names OStim.
 
 usage: py -3 check_consent.py [--afm D:/coding/ActionsForMantella-OStim]
 Exit code 1 on any failure.
@@ -314,7 +319,8 @@ def scene_without_talk():
     live = code(os.path.join(SCRIPTS, 'MAE_Live.psc'))
     summary = function(live, 'SendSummary')
     keep, run, minor = summary.find('KeepForLater(line)'), summary.find('!ConversationRunning()'), summary.find('MAE_Text.MinorInTalk()')
-    check(0 <= run < keep and 0 <= minor < keep and 'AddEvent(line)' in summary[keep:], 'SendSummary: with no talk running (or a child in it) the line is kept, else told')
+    check(0 <= run < keep and 0 <= minor < keep and 'SendLine(line, 0.0)' in summary[keep:],
+          'SendSummary: with no talk running (or a child in it) the line is kept, else told at once with a turn (live test 18)')
     later = function(live, 'KeepForLater')
     check('!MAE_Text.IsChildActor(partner)' in later and 'partner != PlayerRef' in later and 'MAX_PENDING' in later
           and 'StorageUtil.StringListRemoveAt(partner, KEY_PENDING, 0)' in later
@@ -384,6 +390,44 @@ def scene_results():
           'SexWithNPC: a repeat whose pair is already in a scene reports no failure')
 
 
+def child_far():
+    print('== a child far away leaves the talk; one close by blocks')
+    text = code(os.path.join(SCRIPTS, 'MAE_Text.psc'))
+    far, remove = function(text, 'ChildFar'), function(text, 'RemoveFarChildren')
+    check('IsInterior()' in far and 'child_far_distance' in far and 'child_hidden_distance' in far and 'HasLOS' in far,
+          'ChildFar: another interior cell, the far distance, and out of sight past the hidden distance')
+    check('IsChildActor(member)' in remove and 'ChildFar(member)' in remove and 'RemoveActorsFromConversation(far)' in remove
+          and '!adult' in remove, 'RemoveFarChildren: only far children, only with an adult NPC in the talk')
+    ask = code(os.path.join(SCRIPTS, 'MAE_Ask.psc'))
+    for name in ('OnSexAdvanced', 'OnGroupAdvanced'):
+        body = function(ask, name)
+        check(0 <= body.find('RemoveFarChildren()') < body.find('Declined('),
+              f'{name}: a far child is out of the talk before any child check')
+    npc = code(os.path.join(SCRIPTS, 'MAE_Npc.psc'))
+    present = function(npc, 'MinorPresent')
+    check(0 <= present.find('RemoveFarChildren()') < present.find('MinorInTalk()'), 'MinorPresent: far children out first, then the block')
+    check('"CustomMenu"' in function(npc, 'Register') and 'CheckChildren()' in function(npc, 'OnMenuOpen'),
+          "the check runs again when Mantella's text box opens, before the line goes out")
+    check('RemoveFarChildren()' in function(npc, 'CheckChildren') and 'RegisterForSingleUpdate(WATCH_SECONDS)' in function(npc, 'CheckChildren'),
+          'the watch takes far children out every few seconds while the player talks')
+    leave = function(npc, 'OnChildLeaveAdvanced')
+    check('IsChildActor(npc)' in leave and 'RemoveActorsFromConversation' in leave, 'ChildLeaves removes only children in the talk')
+    live = code(os.path.join(SCRIPTS, 'MAE_Live.psc'))
+    check('children.Watch()' in function(live, 'OnNpcAdded'), 'every join starts the watch (saves made before it too)')
+    near = function(npc, 'NearChildren')
+    check('IsChildActor(npc)' in near and '!MAE_Text.InTalk(npc)' in near, 'children nearby but not in the talk are listed, never blocked')
+    d = json.load(open(os.path.join(ACTIONS, 'mantella_mlw_child_leave.json'), encoding='utf-8'))
+    check(d.get('identifier') == 'mantella_mlw_child_leave' and d.get('lw_gate') == 'minor=1' and d.get('radiant') is False,
+          'ChildLeaves: own identifier, offered only while a child is in the talk, not radiant')
+    settings = json.load(open(os.path.join(REPO, 'SKSE', 'Plugins', 'StorageUtilData', 'MantellaAdultExpansion',
+                                           'child_settings.json'), encoding='utf-8'))['float']
+    check(settings == {'child_far_distance': 1024.0, 'child_hidden_distance': 384.0, 'child_near_distance': 2048.0},
+          f'child_settings.json defaults {settings}')
+    box = function(ask, 'Ask')
+    check('OStim scene:' in box and 'OStim group scene:' in box and 'want to start a scene' not in box,
+          'the box names OStim and says what each answer does')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--afm', default=os.path.join(os.path.dirname(REPO), 'ActionsForMantella-OStim'))
@@ -403,6 +447,7 @@ def main():
     scene_without_talk()
     rating_and_target()
     scene_results()
+    child_far()
     print(f'\n{len(fails)} failures')
     sys.exit(1 if fails else 0)
 
