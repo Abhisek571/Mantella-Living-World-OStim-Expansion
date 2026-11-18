@@ -52,6 +52,9 @@ Event OnNpcAdded(Form akActor)
 EndEvent
 
 Event OnNpcRemoved(Form akActor)
+	If !talkers
+		Return
+	EndIf
 	int i = talkers.Find(akActor as Actor)
 	If i >= 0
 		talkers[i] = None
@@ -79,7 +82,7 @@ Actor[] Function Candidates(Actor[] akSceneActors)
 	int i = 0
 	While i < talkers.Length
 		Actor npc = talkers[i]
-		If npc && akSceneActors.Find(npc) < 0 && !npc.IsDead() && !MAE_Text.IsChildActor(npc)
+		If npc && akSceneActors.Find(npc) < 0 && !npc.IsDead() && !MAE_Text.IsChildActor(npc) && MAE_Text.InTalk(npc)
 			result[n] = npc
 			n += 1
 		EndIf

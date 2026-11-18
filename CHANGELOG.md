@@ -28,6 +28,14 @@ Every change to Mantella Living World - OStim Expansion. The Nexus page lists on
 - A scene decision other than accept ("no", "refuse") is now a decline. Before, only the exact word decline counted as no.
 - Rating favourite positions with no position name that matches is asked again at the next scene (up to three times), instead of leaving the favourites empty for good.
 - SexWithNPC is between two NPCs only; its text no longer offers the player as the target (SexWithPlayer is for that).
+- A child who joins the talk while an affection scene is still starting (the walk together can take 45 seconds) now ends it at once, with no line about it in the talk; the end line is not told either while a child is in the talk.
+- An NPC naming a child in Undress, Redress or SexWithNPC no longer puts a line about the child into the talk; the action is just refused.
+- Any OStim scene with a child in it is stopped as soon as it starts, whoever started it (for example someone added in OStim's own actor picker).
+- Only the player's partner in the scene can change its position; someone else in the talk asking for a position change is ignored.
+- Less stutter when someone joins a talk: the affection kinds come from a cache without copying OStim's whole scene list each time, and chairs are only looked for when a chair kind is installed.
+- Scene, climax, pace and end-of-scene lines are never sent for an OStim scene with a child in it, including a child added after the scene began.
+- Nobody riding a horse can agree to a scene, and no scene starts while the player is mounted.
+- Bystander remarks during a scene come only from people still in the talk, not from someone who already left it.
 - Build Flows names the Mod Organizer 2 profile it reads (the one last selected in Mod Organizer 2) and how to pick another. A copy that is not enabled in that profile builds nothing (Direct AI Connect's setup then uses an enabled copy).
 - A scene with the player that ends while no Mantella conversation is running (started from another mod's dialogue, for example) is no longer forgotten: each partner is told about it, with how long ago, when she next joins a talk. More than three such scenes are not lost: the oldest are counted and told as more scenes before these.
 - A wary stranger is no longer told which affection (a kiss, a hug, a dance) they could share with you right now; only NPCs close to you, Always willing ones, or someone who said yes to a scene with you today are.

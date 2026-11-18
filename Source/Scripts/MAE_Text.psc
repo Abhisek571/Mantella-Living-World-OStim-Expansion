@@ -18,20 +18,33 @@ bool Function IsChildActor(Actor akActor) Global
 	Return actorRace && StringUtil.Find(MiscUtil.GetRaceEditorID(actorRace), "Child") >= 0
 EndFunction
 
+; A child is among the OStim thread's actors.
+bool Function ChildInThread(int aiThreadID) Global
+	Actor[] actors = OThread.GetActors(aiThreadID)
+	int i = 0
+	While i < actors.Length
+		If IsChildActor(actors[i])
+			Return true
+		EndIf
+		i += 1
+	EndWhile
+	Return false
+EndFunction
+
 ; In no state to agree to anything now: dead, gone, asleep, unconscious, bleeding out, paralysed, knocked down,
-; fighting or already in a scene.
+; fighting, riding or already in a scene.
 bool Function CannotConsent(Actor akActor) Global
 	If !akActor || akActor.IsDead() || akActor.IsDisabled()
 		Return true
 	EndIf
 	Return akActor.GetSleepState() >= 3 || akActor.IsUnconscious() || akActor.IsBleedingOut() || akActor.GetActorValue("Paralysis") > 0 \
-			|| PO3_SKSEFunctions.GetActorKnockState(akActor) != 0 || akActor.IsInCombat() || OActor.IsInOStim(akActor)
+			|| PO3_SKSEFunctions.GetActorKnockState(akActor) != 0 || akActor.IsInCombat() || akActor.IsOnMount() || OActor.IsInOStim(akActor)
 EndFunction
 
-; The player can agree: not fighting, and not a werewolf or a vampire lord.
+; The player can agree: not fighting, not riding, and not a werewolf or a vampire lord.
 bool Function PlayerCanConsent() Global
 	Actor player = Game.GetPlayer()
-	If player.IsInCombat()
+	If player.IsInCombat() || player.IsOnMount()
 		Return false
 	EndIf
 	Race playerRace = player.GetRace()

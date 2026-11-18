@@ -268,12 +268,8 @@ Actor Function Allowed(MantellaConversation akConversation, string asName, Form 
 	EndIf
 	string name = npc.GetDisplayName()
 	If MAE_Text.IsChildActor(npc)
-		string speaker = "Nobody"
-		If akSpeaker as Actor
-			speaker = (akSpeaker as Actor).GetDisplayName()
-		EndIf
+		; logged only: no line about a child goes into the talk
 		Log("REFUSED|" + name + " is a child")
-		Positions.AddMantellaEvent(speaker + " will not do that to a child.")
 		Return None
 	EndIf
 	MLW_Channel channel = Ask.Channel()

@@ -74,6 +74,8 @@ int requestToken = 0
 float timerDue = 0.0
 ; One writer of the NPC file at a time (the join and a refresh came at the same moment and the older one won).
 bool fileLock = false
+; OStim's scene count, read on the first join after a load (AvailableKinds); -1 until then.
+int sceneCount = -1
 
 Event OnInit()
 	RegisterForModEvent("MantellaConversation_Advanced_Action_" + ACTION_AFFECTION, "OnAffectionAdvanced")
@@ -193,63 +195,81 @@ EndFunction
 ; her as KEY_KINDS (without the intimate kinds) and KEY_KINDS_INTIMATE (with them); returns the one for her standing
 ; now. A kind with scenes for one of them only says who, e.g. "(only you do it)".
 string Function AvailableKinds(Actor akNpc)
-	string[] all = OLibrary.GetAllScenes()
-	bool chair = false
-	bool chairChecked = false
-	; the same for every pair of these sexes while the scene library and a free chair nearby stay the same: worked out
-	; once, not for every NPC who joins
-	chair = FreeFurniture("chair") != None
-	chairChecked = true
-	; the kind lists are in the key too, so an update that adds, renames or moves a kind is never answered from an old save
+	; OStim reads its scenes once at game start: their count is read once per load (sceneCount), and the scene list is
+	; copied only when the answer is not cached yet.
+	string[] all
+	bool fetched = false
+	If sceneCount <= 0
+		all = OLibrary.GetAllScenes()
+		fetched = true
+		sceneCount = all.Length
+	EndIf
+	; the same for every pair of these sexes while the scene library stays the same: worked out once, not for every NPC
+	; who joins. The kind lists are in the key too, so an update that adds, renames or moves a kind is never answered
+	; from an old save. Both answers are kept, with and without a free chair, so a chair is looked for (UseCache) only when a found kind needs one.
 	string lists = PapyrusUtil.StringJoin(JsonUtil.StringListToArray(LIST_FILE, "kinds"), ",") + "|" + PapyrusUtil.StringJoin(JsonUtil.StringListToArray(LIST_FILE, "intimate_kinds"), ",") + "|" + PapyrusUtil.StringJoin(JsonUtil.StringListToArray(LIST_FILE, "open_kinds"), ",")
-	string cache = "MAE_KindsCache_" + akNpc.GetLeveledActorBase().GetSex() + "_" + PlayerRef.GetLeveledActorBase().GetSex() + "_" + all.Length + "_" + (chair as int) + "_" + lists
+	string cache = "MAE_KindsCache2_" + akNpc.GetLeveledActorBase().GetSex() + "_" + PlayerRef.GetLeveledActorBase().GetSex() + "_" + sceneCount + "_" + lists
 	If StorageUtil.HasStringValue(None, cache + "_close")
-		StorageUtil.SetStringValue(akNpc, KEY_KINDS_OPEN, StorageUtil.GetStringValue(None, cache + "_open"))
-		StorageUtil.SetStringValue(akNpc, KEY_KINDS, StorageUtil.GetStringValue(None, cache + "_close"))
-		StorageUtil.SetStringValue(akNpc, KEY_KINDS_INTIMATE, StorageUtil.GetStringValue(None, cache + "_intimate"))
+		UseCache(akNpc, cache)
 		Return KindsFor(akNpc)
+	EndIf
+	If !fetched
+		all = OLibrary.GetAllScenes()
 	EndIf
 	int count = JsonUtil.StringListCount(LIST_FILE, "kinds")
 	string[] names = new string[16]
 	int[] level = new int[16]  ; 0 open to anyone, 1 close, 2 intimate
+	int[] levelNoChair = new int[16]  ; the same, with 9 (never listed) for a kind that needs a chair
+	bool anyChair = false
 	int found = 0
 	int i = 0
 	While i < count && found < names.Length
 		string kind = JsonUtil.StringListGet(LIST_FILE, "kinds", i)
-		bool fits = true
-		If Furniture(kind) != ""
-			If !chairChecked
-				chair = FreeFurniture("chair") != None
-				chairChecked = true
-			EndIf
-			fits = Furniture(kind) != "chair" || chair
-		EndIf
+		bool needsChair = Furniture(kind) == "chair"
 		; Either of them doing it counts: with OStim's actor order some kinds have scenes only for one of them.
-		If fits
-			bool npcDoes = PickScene(kind, akNpc, "", "", all, true) != ""
-			bool playerDoes = PickScene(kind, akNpc, "player", "", all, true) != ""
-			If npcDoes || playerDoes
-				names[found] = JsonUtil.GetStringValue(LIST_FILE, "name_" + kind, kind)
-				If JsonUtil.GetStringValue(LIST_FILE, "who_" + kind, "") != ""
-					If !playerDoes
-						names[found] = names[found] + " (only you do it)"
-					ElseIf !npcDoes
-						names[found] = names[found] + " (only the player does it)"
-					EndIf
+		bool npcDoes = PickScene(kind, akNpc, "", "", all, true) != ""
+		bool playerDoes = PickScene(kind, akNpc, "player", "", all, true) != ""
+		If npcDoes || playerDoes
+			names[found] = JsonUtil.GetStringValue(LIST_FILE, "name_" + kind, kind)
+			If JsonUtil.GetStringValue(LIST_FILE, "who_" + kind, "") != ""
+				If !playerDoes
+					names[found] = names[found] + " (only you do it)"
+				ElseIf !npcDoes
+					names[found] = names[found] + " (only the player does it)"
 				EndIf
-				level[found] = KindLevel(kind)
-				found += 1
 			EndIf
+			level[found] = KindLevel(kind)
+			levelNoChair[found] = level[found]
+			If needsChair
+				levelNoChair[found] = 9
+				anyChair = true
+			EndIf
+			found += 1
 		EndIf
 		i += 1
 	EndWhile
-	StorageUtil.SetStringValue(akNpc, KEY_KINDS_OPEN, KindList(names, level, found, 0))
-	StorageUtil.SetStringValue(akNpc, KEY_KINDS, KindList(names, level, found, 1))
-	StorageUtil.SetStringValue(akNpc, KEY_KINDS_INTIMATE, KindList(names, level, found, 2))
+	; "_close" last: the check above takes it to mean every value is there
+	StorageUtil.SetIntValue(None, cache + "_chair", anyChair as int)
+	StorageUtil.SetStringValue(None, cache + "_open_nochair", KindList(names, levelNoChair, found, 0))
+	StorageUtil.SetStringValue(None, cache + "_close_nochair", KindList(names, levelNoChair, found, 1))
+	StorageUtil.SetStringValue(None, cache + "_intimate_nochair", KindList(names, levelNoChair, found, 2))
 	StorageUtil.SetStringValue(None, cache + "_open", KindList(names, level, found, 0))
-	StorageUtil.SetStringValue(None, cache + "_close", KindList(names, level, found, 1))
 	StorageUtil.SetStringValue(None, cache + "_intimate", KindList(names, level, found, 2))
+	StorageUtil.SetStringValue(None, cache + "_close", KindList(names, level, found, 1))
+	UseCache(akNpc, cache)
 	Return KindsFor(akNpc)
+EndFunction
+
+; Her kinds from the cache: the answer without the chair kinds when one needs a chair and no chair is free near the
+; player now (chairs are looked for only then).
+Function UseCache(Actor akNpc, string asCache)
+	string variant = ""
+	If StorageUtil.GetIntValue(None, asCache + "_chair", 0) == 1 && !FreeFurniture("chair")
+		variant = "_nochair"
+	EndIf
+	StorageUtil.SetStringValue(akNpc, KEY_KINDS_OPEN, StorageUtil.GetStringValue(None, asCache + "_open" + variant))
+	StorageUtil.SetStringValue(akNpc, KEY_KINDS, StorageUtil.GetStringValue(None, asCache + "_close" + variant))
+	StorageUtil.SetStringValue(akNpc, KEY_KINDS_INTIMATE, StorageUtil.GetStringValue(None, asCache + "_intimate" + variant))
 EndFunction
 
 ; The first aiFound names as "a, b and c", those of level aiMaxLevel or lower.
@@ -306,7 +326,8 @@ string Function PickScene(string asKind, Actor akNpc, string asWho, string asCur
 	If asKind == "" || (!abAnyStanding && IntimateKind(asKind) && !Ask.IsIntimate(akNpc))
 		Return ""
 	EndIf
-	If !asAll
+	; by length: `If !asAll` was true for OStim's full scene list (thousands of entries), so it was fetched every time
+	If asAll.Length == 0
 		asAll = OLibrary.GetAllScenes()
 	EndIf
 	Actor[] pair = SortedPair(akNpc)
@@ -783,6 +804,14 @@ EndFunction
 Event OnThreadStart(string asEventName, string asArg, float afThreadID, Form akSender)
 	int id = afThreadID as int
 	If !OThread.HasMetadata(id, METADATA)
+		; Children never take part in a scene: any thread with a child in it stops here, whoever started it (OStim's
+		; picker can add actors nobody checked).
+		If MAE_Text.ChildInThread(id)
+			Log("STOP|a child is in thread " + id)
+			Debug.Trace("[Mantella Living World - OStim Expansion] stopped OStim thread " + id + ": a child is in it")
+			StopThread(id)
+			Return
+		EndIf
 		MarkScene(id)
 		Return
 	EndIf
@@ -794,6 +823,14 @@ Event OnThreadStart(string asEventName, string asArg, float afThreadID, Form akS
 	If stopOnStart || !partner
 		; !partner: forgotten after a load while the actors walked together.
 		Log("STOP|ended before the start")
+		StopThread(id)
+		Return
+	EndIf
+	; A child may have joined the talk while the actors walked together: no line, no score, and the scene ends at once.
+	If MAE_Text.MinorInTalk() || MAE_Text.ChildInThread(id)
+		stopOnStart = true
+		silentEnd = true
+		Log("STOP|a child is in the talk or the scene")
 		StopThread(id)
 		Return
 	EndIf
@@ -822,7 +859,7 @@ Event OnThreadEnd(string asEventName, string asArg, float afThreadID, Form akSen
 	Log("TIMING|end|" + currentKind + "|fromAction=" + (now - actionAt) + "|fromStart=" + (now - startAt))
 	Actor npc = partner
 	bool played = started && !stopOnStart && npc
-	If played && !silentEnd
+	If played && !silentEnd && !MAE_Text.MinorInTalk()
 		Positions.AddMantellaEvent(Line("end_" + currentKind))
 	EndIf
 	string after = afterEnd
@@ -877,6 +914,8 @@ Event OnMenuClose(string asMenuName)
 	If (starting || started) && !OActor.IsInOStim(PlayerRef)
 		Forget()
 	EndIf
+	; a load may come after a restart with other scenes installed: counted again at the next join
+	sceneCount = -1
 	SweepScenes()
 EndEvent
 

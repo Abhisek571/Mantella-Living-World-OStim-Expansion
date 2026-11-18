@@ -428,6 +428,69 @@ def child_far():
           'the box names OStim and says what each answer does')
 
 
+def audit_2026_11():
+    """A child who joined during the walk heard the affection line; a refused child was named to the talk; actors
+    added in OStim's picker were never checked; a bystander's position change moved the player's scene; every join
+    copied OStim's whole scene list and looked for chairs before the kinds cache was read."""
+    print('== child guards at the scene start, bystanders, kinds cache')
+    text = code(os.path.join(SCRIPTS, 'MAE_Text.psc'))
+    cit = function(text, 'ChildInThread')
+    check('OThread.GetActors(aiThreadID)' in cit and 'IsChildActor(actors[i])' in cit and 'actors &&' not in cit,
+          'ChildInThread checks every actor of the thread (no truth test on the native array)')
+    aff = code(os.path.join(SCRIPTS, 'MAE_Affection.psc'))
+    start = function(aff, 'OnThreadStart')
+    other = start.find('If !OThread.HasMetadata(id, METADATA)')
+    net = start.find('MAE_Text.ChildInThread(id)', other)
+    check(0 <= other < net < start.find('StopThread(id)', net) < start.find('MarkScene(id)'),
+          'any thread with a child in it is stopped before anything else happens to it')
+    line = start.find('Positions.AddMantellaEvent(Line("line_"')
+    guard = start.find('If MAE_Text.MinorInTalk() || MAE_Text.ChildInThread(id)')
+    check(0 <= guard < line and 'stopOnStart = true' in start[guard:line] and 'silentEnd = true' in start[guard:line]
+          and 'StopThread(id)' in start[guard:line], 'affection start: a child in the talk stops it with no line and no score')
+    end = function(aff, 'OnThreadEnd')
+    check('If played && !silentEnd && !MAE_Text.MinorInTalk()' in end, 'affection end: no end line with a child in the talk')
+    npc = code(os.path.join(SCRIPTS, 'MAE_Npc.psc'))
+    allowed = function(npc, 'Allowed')
+    at = allowed.find('If MAE_Text.IsChildActor(npc)')
+    block = allowed[at:allowed.find('Return None', at)] if at >= 0 else ''
+    check(block != '' and 'AddMantellaEvent' not in block and 'Log(' in block, 'Allowed logs a refused child but tells the talk nothing')
+    check('to a child' not in npc, 'MAE_Npc never sends a line about a child')
+    change = function(code(os.path.join(SCRIPTS, 'MAE_Positions.psc')), 'OnChangeAdvanced')
+    who = change.find('(akSpeaker as Actor) != partner')
+    check(0 <= who < change.find('Flows.PlayPose('), 'change position: only the scene partner moves the scene')
+    kinds = function(aff, 'AvailableKinds')
+    hit = kinds.find('If StorageUtil.HasStringValue(None, cache + "_close")')
+    check(0 <= hit < kinds.find('If !fetched') < kinds.rfind('OLibrary.GetAllScenes()'),
+          'AvailableKinds reads the cache before copying the scene list (only the first join after a load counts them)')
+    check('FreeFurniture(' not in kinds and 'FreeFurniture("chair")' in function(aff, 'UseCache'),
+          'AvailableKinds looks for a chair only when a cached kind needs one')
+    check(kinds.rfind('cache + "_close"') > kinds.rfind('cache + "_open"') and kinds.rfind('cache + "_close"') > kinds.rfind('_nochair'),
+          'the cache entry the check reads is written last')
+    pick = function(aff, 'PickScene')
+    check('If !asAll' not in pick and 'If asAll.Length == 0' in pick, 'PickScene tests the passed scene list by length')
+    check('sceneCount = -1' in function(aff, 'OnMenuClose'), 'the scene count is read again after every load')
+    live = code(os.path.join(SCRIPTS, 'MAE_Live.psc'))
+    partners = function(live, 'Partners')
+    kid = partners.find('If MAE_Text.IsChildActor(actors[i])')
+    check(0 <= kid < partners.find('count += 1') and 'Return ""' in partners[kid:partners.find('count += 1')],
+          'Partners returns "" for a scene with a child in it, before naming anyone')
+    for ev in ('OnSceneChanged', 'OnOrgasm'):
+        body = function(live, ev)
+        empty = body.find('If partners == ""')
+        check(0 <= empty < body.find('DropChildScene(threadID)') < body.find('Return', empty) < body.find('SendLine(')
+              and 'BeginScene(' not in body[:body.find('Return', empty)], f'{ev}: a scene with a child sends nothing and is not tracked')
+    drop = function(live, 'DropChildScene')
+    check('MAE_Text.ChildInThread(aiThreadID)' in drop and 'sceneThread = -1' in drop and 'scenePartners = ""' in drop,
+          'a child added to the tracked scene drops it (no pace, excitement or summary line)')
+    text = code(os.path.join(SCRIPTS, 'MAE_Text.psc'))
+    check('akActor.IsOnMount()' in function(text, 'CannotConsent'), 'CannotConsent: someone riding cannot agree')
+    check('player.IsOnMount()' in function(text, 'PlayerCanConsent'), 'PlayerCanConsent: not while the player rides')
+    by = code(os.path.join(SCRIPTS, 'MAE_Bystander.psc'))
+    check('MAE_Text.InTalk(npc)' in function(by, 'Candidates'), 'bystander remarks only from someone still in the talk')
+    removed = function(by, 'OnNpcRemoved')
+    check(0 <= removed.find('If !talkers') < removed.find('talkers.Find('), 'OnNpcRemoved never searches a missing list')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--afm', default=os.path.join(os.path.dirname(REPO), 'ActionsForMantella-OStim'))
@@ -448,6 +511,7 @@ def main():
     rating_and_target()
     scene_results()
     child_far()
+    audit_2026_11()
     print(f'\n{len(fails)} failures')
     sys.exit(1 if fails else 0)
 

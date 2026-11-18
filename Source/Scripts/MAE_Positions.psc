@@ -219,11 +219,15 @@ Event OnChangeAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 		Return
 	EndIf
 	; Flows play only for a two-person scene with an opposite-sex partner: the rest is OStim's own menu.
-	If !Flows.PartnerOf(threadID)
+	Actor partner = Flows.PartnerOf(threadID)
+	If !partner
 		If toldMenuThread != threadID
 			toldMenuThread = threadID
 			AddMantellaEvent("Positions for this pair are picked in OStim's own menu, so they carry on as they were.")
 		EndIf
+		Return
+	ElseIf (akSpeaker as Actor) != partner
+		; only the player's partner in the scene changes it, never someone else in the talk
 		Return
 	EndIf
 	If !Flows.PlayPose(pose)

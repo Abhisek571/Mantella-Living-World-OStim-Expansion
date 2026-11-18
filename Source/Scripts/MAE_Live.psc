@@ -278,6 +278,7 @@ Event OnSceneChanged(string asEventName, string asArg, float afThreadID, Form ak
 	int threadID = afThreadID as int
 	string partners = Partners(threadID)
 	If partners == ""
+		DropChildScene(threadID)
 		Return
 	EndIf
 	If threadID != sceneThread
@@ -313,6 +314,7 @@ Event OnOrgasm(string asEventName, string asSceneID, float afThreadID, Form akSe
 	int threadID = afThreadID as int
 	string partners = Partners(threadID)
 	If partners == ""
+		DropChildScene(threadID)
 		Return
 	EndIf
 	Actor climaxed = akSender as Actor
@@ -333,6 +335,16 @@ Event OnOrgasm(string asEventName, string asSceneID, float afThreadID, Form akSe
 	; The climax is always told; whether anyone speaks right away is a coin flip.
 	SendLine(who + " just climaxed.", MAE_TalkGap.GetValue(), BystanderLine(threadID, partners), MAE_TalkBandChance.GetValue())
 EndEvent
+
+; A child added to the tracked scene after it began: forgotten, so no pace, excitement or end-of-scene line follows.
+Function DropChildScene(int aiThreadID)
+	If aiThreadID == sceneThread && MAE_Text.ChildInThread(aiThreadID)
+		TestLog("CHILD|scene " + aiThreadID + " forgotten")
+		sceneThread = -1
+		scenePartners = ""
+		lastActs = ""
+	EndIf
+EndFunction
 
 ; A remark from a conversation member watching the scene, or "".
 string Function BystanderLine(int aiThreadID, string asPartners)
@@ -699,6 +711,9 @@ string Function Partners(int aiThreadID)
 	int i = 0
 	While i < actors.Length
 		If actors[i] && actors[i] != PlayerRef
+			If MAE_Text.IsChildActor(actors[i])
+				Return ""  ; no line about a scene with a child in it, and no tracking of it
+			EndIf
 			count += 1
 		EndIf
 		i += 1
