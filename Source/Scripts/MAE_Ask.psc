@@ -1,6 +1,7 @@
 Scriptname MAE_Ask extends Quest
-{Mantella's sex and group sex actions with the player land here: a box asks the player Yes, No or Skip before
-anything starts. Skip fades to black, lets time pass and records the scene as done: Mantella hears it, arousal and
+{Mantella's sex and group sex actions with the player land here. The NPC decides first (the action's decision and
+reason): a decline starts nothing and is shown and remembered (Declined). On accept a box asks the player Yes, No or
+Skip before anything starts. Skip fades to black, lets time pass and records the scene as done: Mantella hears it, arousal and
 climax counts move. Nothing goes through OStim's climax event, since other mods react to that one with effects
 meant for a running scene, so Lover's Ledger and favourite positions don't count a skipped scene.
 On its own quest: SKSE keeps one mod event registration per object.}
@@ -21,6 +22,8 @@ float Property SKIP_AROUSAL_CHANGE = -50.0 AutoReadOnly
 float Property SKIP_BLACK_SECONDS = 2.0 AutoReadOnly
 ; A box left open longer than this no longer blocks a new request (a save made with one open).
 float Property ASK_TIMEOUT = 120.0 AutoReadOnly
+; The longest reason a decline shows (HUD line and event line).
+int Property REASON_MAX = 120 AutoReadOnly
 
 bool asking = false
 float askedAt = 0.0
@@ -35,18 +38,139 @@ Event OnInit()
 EndEvent
 
 Event OnSexAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
+	MAE_Text.RemoveFarChildren()  ; a child far away is out of the talk first; one close by still blocks
+	If Declined(akSpeaker, akConversation, aiArguments, 1, "sex with the player")
+		Return
+	EndIf
 	Actor[] npcs = Resolve(akSpeaker, akConversation, aiArguments, 1)
 	If npcs.Length == 1
 		Request(npcs)
+	Else
+		NothingStarts("NOBODY|no one named is intimate with the player", "only someone intimate with the player can agree to that.")
 	EndIf
 EndEvent
 
 Event OnGroupAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
+	MAE_Text.RemoveFarChildren()  ; a child far away is out of the talk first; one close by still blocks
+	If Declined(akSpeaker, akConversation, aiArguments, MAX_NPCS, "group sex with the player")
+		Return
+	EndIf
 	Actor[] npcs = Resolve(akSpeaker, akConversation, aiArguments, MAX_NPCS)
 	If npcs.Length >= 2
-		Request(npcs)
+		; someone named was left out (not intimate with the player, not in the talk): the start names who takes part
+		Request(npcs, false, npcs.Length < Named(akConversation, aiArguments))
+	ElseIf npcs.Length == 1
+		NothingStarts("NOBODY|only " + Names(npcs) + " is intimate with the player", "only " + Names(npcs) + " of those named is close enough to the player for that.")
+	Else
+		NothingStarts("NOBODY|no one named is intimate with the player", "only someone intimate with the player can agree to that.")
 	EndIf
 EndEvent
+
+; How many different people besides the player the action's "source" names in the talk.
+int Function Named(Form akConversation, int aiArguments)
+	MantellaConversation conversation = akConversation as MantellaConversation
+	string[] names = SKSE_HTTP.getStringArray(aiArguments, "source")
+	Actor[] found = PapyrusUtil.ActorArray(MAX_NPCS)
+	int count = 0
+	int i = 0
+	While conversation && names && i < names.Length && count < MAX_NPCS
+		Actor npc = MAE_Text.TalkActor(conversation, names[i])
+		If npc && npc != PlayerRef && found.Find(npc) < 0
+			found[count] = npc
+			count += 1
+		EndIf
+		i += 1
+	EndWhile
+	Return count
+EndFunction
+
+; An accepted request that starts nothing: Mantella hears why, so the talk never goes on about a scene that did not
+; begin. Nothing is said with a child in the talk.
+Function NothingStarts(string asLog, string asWhy)
+	Log("NOTHING|" + asLog)
+	If !MAE_Text.MinorInTalk()
+		Positions.AddMantellaEvent("Nothing starts: " + asWhy)
+	EndIf
+EndFunction
+
+; A scene with the player really started (or was skipped through) today: from now on today they are told which affection
+; they could share (MAE_Affection.FactFor). Not on a mere accept: a No, a refusal or a failed start marks nothing.
+Function MarkAccepted(Actor[] akNpcs)
+	int today = Utility.GetCurrentGameTime() as int
+	int i = 0
+	While akNpcs && i < akNpcs.Length
+		If akNpcs[i]
+			StorageUtil.SetIntValue(akNpcs[i], "MAE_AcceptedDay", today)
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+; The scene actions carry the NPC's own decision ("accept" or "decline") and a short reason. A decline starts nothing
+; and is a real result: a HUD line for the player and an event line the NPCs in the talk hear, which goes into their
+; memory with the rest of the talk (MLW_Notify.Result). Only "accept" or no decision at all (an older Mantella, or
+; keyword actions) goes on: the checks and the player's Yes/No box. Any other word ("no", "refuse") is a decline.
+; Nothing is said with a child in the talk.
+bool Function Declined(Form akSpeaker, Form akConversation, int aiArguments, int aiMax, string asWhat)
+	string decision = SKSE_HTTP.getString(aiArguments, "decision", "")
+	If decision == "" || decision == "accept"
+		Return false
+	EndIf
+	If MAE_Text.MinorInTalk()
+		Log("DECLINED|a child is in the conversation")
+		Return true
+	EndIf
+	MantellaConversation conversation = akConversation as MantellaConversation
+	string[] names = SKSE_HTTP.getStringArray(aiArguments, "source")
+	Actor[] found = PapyrusUtil.ActorArray(aiMax)
+	int count = 0
+	int i = 0
+	While conversation && names && i < names.Length && count < aiMax
+		Actor npc = MAE_Text.TalkActor(conversation, names[i])
+		If npc && npc != PlayerRef && found.Find(npc) < 0 && !MAE_Text.IsChildActor(npc)
+			found[count] = npc
+			count += 1
+		EndIf
+		i += 1
+	EndWhile
+	string who = Names(PapyrusUtil.ResizeActorArray(found, count))
+	If who == "" && (akSpeaker as Actor) && (akSpeaker as Actor) != PlayerRef
+		who = (akSpeaker as Actor).GetDisplayName()
+	EndIf
+	If who == ""
+		Return true
+	EndIf
+	string reason = Reason(aiArguments)
+	string hud = who + " said no."
+	string fact = "(" + who + " said no to " + asWhat + ".)"
+	If reason != ""
+		hud = who + " said no: " + reason
+		fact = "(" + who + " said no to " + asWhat + ": " + reason + ".)"
+	EndIf
+	Log("DECLINED|" + who + "|" + reason)
+	MLW_Notify.Result(hud, fact)
+	Return true
+EndFunction
+
+; The action's reason, trimmed of spaces and a final full stop, at most REASON_MAX characters.
+string Function Reason(int aiArguments)
+	string text = SKSE_HTTP.getString(aiArguments, "reason", "")
+	int n = StringUtil.GetLength(text)
+	While n > 0 && (StringUtil.GetNthChar(text, n - 1) == " " || StringUtil.GetNthChar(text, n - 1) == ".")
+		n -= 1
+	EndWhile
+	int start = 0
+	While start < n && StringUtil.GetNthChar(text, start) == " "
+		start += 1
+	EndWhile
+	If n - start > REASON_MAX
+		n = start + REASON_MAX
+	EndIf
+	If n <= start
+		Return ""
+	EndIf
+	Return StringUtil.Substring(text, start, n - start)
+EndFunction
 
 ; The action's "source" names as conversation members, up to aiMax and without the player, doubles or anyone not
 ; intimate with the player; the speaker when none resolves and the speaker is intimate.
@@ -95,14 +219,16 @@ EndFunction
 
 ; abAfterAffection: the request came during an affection scene, which has ended (MAE_Affection.Grow).
 ; One request at a time from its first check to the start: two at once could both start a scene.
-Function Request(Actor[] akNpcs, bool abAfterAffection = false)
+; abNamePeople: some of the people named were left out, so a start says who takes part.
+Function Request(Actor[] akNpcs, bool abAfterAffection = false, bool abNamePeople = false)
 	float now = Utility.GetCurrentRealTime()
 	If asking && now >= askedAt && now - askedAt < ASK_TIMEOUT
+		NothingStarts("BUSY|another request is being answered", "the player is still answering another request.")
 		Return
 	EndIf
 	asking = true
 	askedAt = now
-	RequestScene(akNpcs, abAfterAffection)
+	RequestScene(akNpcs, abAfterAffection, abNamePeople)
 	If askedAt == now
 		asking = false
 	EndIf
@@ -114,12 +240,14 @@ bool Function Asking()
 	Return asking && now >= askedAt && now - askedAt < ASK_TIMEOUT
 EndFunction
 
-Function RequestScene(Actor[] akNpcs, bool abAfterAffection)
+Function RequestScene(Actor[] akNpcs, bool abAfterAffection, bool abNamePeople = false)
 	MAE_Affection affection = Game.GetFormFromFile(0x000826, "Mantella Living World - OStim Expansion.esp") as MAE_Affection
 	If OActor.IsInOStim(PlayerRef) || (affection && affection.Busy())
 		; During an affection scene with her (or while it is starting) the request goes on once that scene has ended.
 		If akNpcs.Length == 1 && affection && affection.Grow(akNpcs[0])
 			Log("GROW|" + Names(akNpcs))
+		Else
+			NothingStarts("SCENE|the player is already in a scene", "the player is already in another scene.")
 		EndIf
 		Return
 	EndIf
@@ -147,6 +275,12 @@ Function RequestScene(Actor[] akNpcs, bool abAfterAffection)
 		answer = Ask(akNpcs)
 	EndIf
 	Log("ANSWER|" + answer + "|" + Names(akNpcs))
+	; The box can stay open a long time: a child who joined meanwhile hears nothing about a scene, whatever the answer.
+	If answer != "Yes" && MAE_Text.MinorInTalk()
+		Log("REFUSED|a child joined while the box was open")
+		Positions.AddMantellaEvent("Nothing starts: this is no moment for it.")
+		Return
+	EndIf
 	If answer == "Yes"
 		Actor[] actors = PapyrusUtil.ActorArray(akNpcs.Length + 1)
 		actors[0] = PlayerRef
@@ -158,7 +292,7 @@ Function RequestScene(Actor[] akNpcs, bool abAfterAffection)
 		MAE_Text.WaitAfterScene()
 		; The player may have started a scene meanwhile, or the box stayed open past ASK_TIMEOUT.
 		If OActor.IsInOStim(PlayerRef) || (affection && affection.Busy())
-			Log("REFUSED|someone is in a scene")
+			NothingStarts("REFUSED|someone is in a scene", "the player is already in another scene.")
 			Return
 		EndIf
 		i = 0
@@ -178,10 +312,16 @@ Function RequestScene(Actor[] akNpcs, bool abAfterAffection)
 		If OThread.QuickStart(actors) < 0
 			Log("FAILED|QuickStart")
 			Positions.AddMantellaEvent("The scene could not start, so " + Names(akNpcs) + " and the player carry on as they were.")
-		ElseIf abAfterAffection
+			Return
+		EndIf
+		MarkAccepted(akNpcs)
+		If abAfterAffection
 			Positions.AddMantellaEvent(Names(akNpcs) + " is ready now, and they start having sex.")
+		ElseIf abNamePeople
+			Positions.AddMantellaEvent("Only " + Names(akNpcs) + " and the player take part.")
 		EndIf
 	ElseIf answer == "Skip"
+		MarkAccepted(akNpcs)
 		Skip(akNpcs)
 	Else
 		Positions.AddMantellaEvent(Names(akNpcs) + " wanted to start having sex with the player, but the player said no for now.")
@@ -205,14 +345,15 @@ string Function Ask(Actor[] akNpcs)
 		; A test that ended without clearing it: never answer for the player outside test mode.
 		testAnswer = ""
 	EndIf
-	string text = Names(akNpcs) + " want to start a scene with you."
+	; names the system and says exactly what each answer does
+	string text = "OStim group scene: " + Names(akNpcs) + " want to have sex with you now.\n\nYes: the OStim scene starts."
 	If akNpcs.Length == 1
-		text = Names(akNpcs) + " wants to start a scene with you."
+		text = "OStim scene: " + Names(akNpcs) + " wants to have sex with you now.\n\nYes: the OStim scene starts."
 	EndIf
 	If PlayerRef.IsInCombat()
-		Return SkyMessage.Show(text, "Yes", "No")
+		Return SkyMessage.Show(text + "\nNo: nothing starts.", "Yes", "No")
 	EndIf
-	Return SkyMessage.Show(text, "Yes", "No", "Skip")
+	Return SkyMessage.Show(text + "\nSkip: fade to black, half an hour passes, and it counts as done.\nNo: nothing starts.", "Yes", "No", "Skip")
 EndFunction
 
 Function Skip(Actor[] akNpcs)

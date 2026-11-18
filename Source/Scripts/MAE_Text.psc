@@ -18,26 +18,61 @@ bool Function IsChildActor(Actor akActor) Global
 	Return actorRace && StringUtil.Find(MiscUtil.GetRaceEditorID(actorRace), "Child") >= 0
 EndFunction
 
+; A child is among the OStim thread's actors.
+bool Function ChildInThread(int aiThreadID) Global
+	Actor[] actors = OThread.GetActors(aiThreadID)
+	int i = 0
+	While i < actors.Length
+		If IsChildActor(actors[i])
+			Return true
+		EndIf
+		i += 1
+	EndWhile
+	Return false
+EndFunction
+
 ; In no state to agree to anything now: dead, gone, asleep, unconscious, bleeding out, paralysed, knocked down,
-; fighting or already in a scene.
+; fighting, riding or already in a scene.
 bool Function CannotConsent(Actor akActor) Global
 	If !akActor || akActor.IsDead() || akActor.IsDisabled()
 		Return true
 	EndIf
 	Return akActor.GetSleepState() >= 3 || akActor.IsUnconscious() || akActor.IsBleedingOut() || akActor.GetActorValue("Paralysis") > 0 \
-			|| PO3_SKSEFunctions.GetActorKnockState(akActor) != 0 || akActor.IsInCombat() || OActor.IsInOStim(akActor)
+			|| PO3_SKSEFunctions.GetActorKnockState(akActor) != 0 || akActor.IsInCombat() || akActor.IsOnMount() || OActor.IsInOStim(akActor)
 EndFunction
 
-; The player can agree: not fighting, and not a werewolf or a vampire lord.
+; The player can agree: not fighting, not riding, and not a werewolf or a vampire lord.
 bool Function PlayerCanConsent() Global
 	Actor player = Game.GetPlayer()
-	If player.IsInCombat()
+	If player.IsInCombat() || player.IsOnMount()
 		Return false
 	EndIf
 	Race playerRace = player.GetRace()
 	Race werewolf = Game.GetFormFromFile(0x0CDD84, "Skyrim.esm") as Race
 	Race vampireLord = Game.GetFormFromFile(0x00283A, "Dawnguard.esm") as Race
 	Return !playerRace || (playerRace != werewolf && (!vampireLord || playerRace != vampireLord))
+EndFunction
+
+; The player is in Mantella's running conversation (radiant talks between NPCs get no scene lines).
+bool Function PlayerInTalk() Global
+	MantellaConversation talk = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
+	Return talk && talk.IsRunning() && talk.IsPlayerInConversation()
+EndFunction
+
+; This actor is in Mantella's running conversation now (a missed Ended event leaves stale state otherwise).
+bool Function InTalk(Actor akActor) Global
+	MantellaConversation talk = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
+	If !akActor || !talk || !talk.IsRunning()
+		Return false
+	EndIf
+	int i = talk.CountActorsInConversation()
+	While i > 0
+		i -= 1
+		If talk.GetActorInConversationByIndex(i) == akActor
+			Return true
+		EndIf
+	EndWhile
+	Return false
 EndFunction
 
 ; A child is somewhere in the running Mantella conversation.
@@ -55,6 +90,77 @@ bool Function MinorInTalk() Global
 		i += 1
 	EndWhile
 	Return false
+EndFunction
+
+; Child safety settings (SKSE\Plugins\StorageUtilData\MantellaAdultExpansion\child_settings.json, edited by hand):
+; child_far_distance  game units beyond which a child in the talk counts as far away (default 1024, about 15 m)
+; child_hidden_distance  beyond this, a child neither seeing nor seen by the player counts as far too (behind a wall
+;                     or a door; default 384, 0 = never by sight alone)
+; child_near_distance  children not in the talk within this of the player are named to the model (default 2048)
+string Function ChildSettings() Global
+	Return "MantellaAdultExpansion/child_settings.json"
+EndFunction
+
+float Function ChildSetting(string asKey, float afDefault, float afMin) Global
+	float value = JsonUtil.GetFloatValue(ChildSettings(), asKey, afDefault)
+	If value < afMin
+		Return afMin
+	EndIf
+	Return value
+EndFunction
+
+; A child in the talk who is not physically with the player: not loaded, in another interior cell (another room or
+; building), farther than child_far_distance, or past child_hidden_distance with neither of them in sight of the other.
+bool Function ChildFar(Actor akChild) Global
+	Actor player = Game.GetPlayer()
+	If !akChild || !akChild.Is3DLoaded()
+		Return true
+	EndIf
+	Cell here = player.GetParentCell()
+	Cell there = akChild.GetParentCell()
+	If here != there && ((here && here.IsInterior()) || (there && there.IsInterior()))
+		Return true
+	EndIf
+	float distance = akChild.GetDistance(player)
+	If distance > ChildSetting("child_far_distance", 1024.0, 128.0)
+		Return true
+	EndIf
+	float hidden = ChildSetting("child_hidden_distance", 384.0, 0.0)
+	Return hidden > 0.0 && distance > hidden && !akChild.HasLOS(player) && !player.HasLOS(akChild)
+EndFunction
+
+; Every child in the running talk who is far away (ChildFar) is taken out of it, so the next request to Mantella no
+; longer has them: a child who is not there neither blocks nor hears anything. Only in a talk with the player and at
+; least one adult NPC besides (a talk with only a child in it is left to Mantella). Returns how many were taken out.
+int Function RemoveFarChildren() Global
+	MantellaConversation talk = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as MantellaConversation
+	If !talk || !talk.IsRunning() || !talk.IsPlayerInConversation()
+		Return 0
+	EndIf
+	Actor player = Game.GetPlayer()
+	int count = talk.CountActorsInConversation()
+	Actor[] far = PapyrusUtil.ActorArray(count)
+	int found = 0
+	bool adult = false
+	int i = 0
+	While i < count
+		Actor member = talk.GetActorInConversationByIndex(i)
+		If member && member != player
+			If !IsChildActor(member)
+				adult = true
+			ElseIf ChildFar(member)
+				far[found] = member
+				found += 1
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	If found == 0 || !adult
+		Return 0
+	EndIf
+	far = PapyrusUtil.ResizeActorArray(far, found)
+	talk.RemoveActorsFromConversation(far)
+	Return found
 EndFunction
 
 ; A name from a Mantella action as a member of the running conversation, never someone merely nearby; the player

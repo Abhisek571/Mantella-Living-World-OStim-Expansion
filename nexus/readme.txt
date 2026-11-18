@@ -1,5 +1,5 @@
 Mantella Living World - OStim Expansion
-Version 1.2.0 by itsPigeon2000
+Version 1.2.1 by itsPigeon2000
 
 Mantella NPCs who live through OStim scenes with you: scenes that flow on their own from your animation packs, partners who react and talk, bystanders who comment, favourite positions that are remembered.
 
@@ -25,7 +25,7 @@ Before you start
 
 Installation
 1. Install the hub, then this module. It replaces five action files of Actions For Mantella - Expanded Sex Actions (from Mantella - Community Resources), so it must win over that mod: in MO2 place it below that mod in the left pane; in Vortex set it to load after that mod when Vortex shows the file conflict.
-2. Close the game and run Build Flows.cmd (needs Python 3 once). MO2: in this mod's folder, tools\Mantella Living World - OStim Expansion. Vortex: deploy first, then in the game's Data folder (from Vortex's Open menu), tools\Mantella Living World - OStim Expansion.
+2. Close the game. Direct AI Connect's Setup Backend.cmd builds the flows too when this module is installed, so if you install this module first and then run that setup, there is nothing more to do here. Otherwise run Build Flows.cmd (needs Python 3 once). MO2: in this mod's folder, tools\Mantella Living World - OStim Expansion. Vortex: deploy first, then in the game's Data folder (from Vortex's Open menu), tools\Mantella Living World - OStim Expansion.
 3. MO2: enable the new mod "Mantella Living World - OStim Expansion - Flows". Vortex: Build Flows makes Documents\Mantella Living World\Mantella Living World - OStim Expansion - Flows.zip; install it with Install From File, enable it and deploy.
 4. Run Build Flows again whenever you add or remove animation packs (in Vortex, install the new zip over the old one).
 

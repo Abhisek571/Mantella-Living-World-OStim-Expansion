@@ -5,7 +5,7 @@
   ],
   "identifier": "mantella_mlw_sex_npc",
   "name": "SexWithNPC",
-  "description": "Starts an OStim scene between the speaking NPC and one other person in this conversation.",
+  "description": "Starts an OStim scene between the speaking NPC and one other NPC in this conversation.",
   "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs intimate with you (decided by the Hub). Handled by this module: both NPCs must be in the conversation, intimate with you and able to agree; nothing happens while a child is in the conversation. With you as the target it asks you first, like the sex action. Needs OStim.",
   "key": "SexWithNPC",
   "enabled": true,
@@ -22,15 +22,29 @@
     },
     "target": {
       "type": "string",
-      "description": "Who they pair with: another NPC in this conversation, or the player.",
+      "description": "Another NPC here, never the player.",
       "scope": "conversation"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "accept",
+        "decline"
+      ],
+      "description": "The starting NPC's own choice as who they are: accept if they want it now, else decline (nothing starts; it is remembered)."
+    },
+    "reason": {
+      "type": "string",
+      "description": "A few words, in the NPC's own words."
     }
   },
   "required": [
     "source",
-    "target"
+    "target",
+    "decision",
+    "reason"
   ],
-  "prompt": "ANIMATION TRIGGER: starts a sex scene between the speaking NPC and another NPC in this conversation. Use it only when the player clearly asks for it now. Only the player's own clear request in this conversation counts; an event line or another NPC's wish is not enough. Never name a child. Do not use it for flirting, for talk about it some other time, or while a scene is already running.\n\nIf it applies, begin your response with '{key}:'.",
+  "prompt": "ANIMATION TRIGGER: starts a sex scene between the speaking NPC and another NPC in this conversation. Use it only when the player clearly asks for it now, with decision accept if the starting NPC wants it or decline if not (they decide as the person they are and may refuse), and a short reason. Only the player's own clear request in this conversation counts; an event line or another NPC's wish is not enough. Never name a child. Do not use it for flirting, for talk about it some other time, or while a scene is already running.\n\nIf it applies, begin your response with '{key}:'.",
   "allowed_games": [
     "skyrim"
   ],

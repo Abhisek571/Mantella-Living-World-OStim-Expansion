@@ -16,6 +16,8 @@ int Property SCORE_SCENE = 1 AutoReadOnly
 int Property SCORE_CLIMAX = 3 AutoReadOnly
 int Property SCORE_RATED = 5 AutoReadOnly
 int Property TOP = 3 AutoReadOnly
+string Property KEY_RATE_TRIES = "MAE_PosesRateTries" AutoReadOnly
+int Property RATE_TRIES = 3 AutoReadOnly  ; ratings with no known position name before she is no longer asked
 
 int lastPose = -1
 ; The scene last told that its positions are picked in OStim's own menu (once per scene).
@@ -129,12 +131,15 @@ string Function FavouritesLine(Actor akActor)
 EndFunction
 
 Event OnNpcAdded(Form akActor)
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Positions,OnNpcAdded_start,\n", true, false)
+	EndIf
 	Actor npc = akActor as Actor
 	If !npc || npc == PlayerRef || !Flows.Built() || MAE_Text.IsChildActor(npc)
 		Return
 	EndIf
 	Register()  ; saves made before the scene-start event existed never ran OnInit again
-	If MAE_Text.MinorInTalk()
+	If MAE_Text.MinorInTalk() || !MAE_Text.PlayerInTalk()
 		Return
 	EndIf
 	string line = FavouritesLine(npc)
@@ -143,6 +148,9 @@ Event OnNpcAdded(Form akActor)
 	EndIf
 	If line != ""
 		AddMantellaEvent(line)
+	EndIf
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Positions,OnNpcAdded_end,\n", true, false)
 	EndIf
 EndEvent
 
@@ -168,7 +176,7 @@ string Function UnratedLine(Actor akActor)
 	If StorageUtil.GetIntValue(akActor, KEY_RATED, 0) != 0
 		Return ""
 	EndIf
-	Return akActor.GetDisplayName() + "'s favourite sex positions have not been rated yet."
+	Return akActor.GetDisplayName() + "'s favourite sex positions have not been rated yet. Give them only in the RateFavoritePositions action: never say, hint at or list them, or mention this note; the spoken reply goes on with the scene as usual."
 EndFunction
 
 ; Mantella's one-time rating from her personality: up to three position names, comma separated.
@@ -178,15 +186,21 @@ Event OnRateAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 		Return
 	EndIf
 	string[] names = PapyrusUtil.StringSplit(SKSE_HTTP.getString(aiArguments, "positions", ""), ",")
+	int matched = 0
 	int i = 0
 	While i < names.Length && i < TOP
 		int pose = JsonUtil.StringListFind(CATALOGUE, "poses", Trim(names[i]))
 		If pose >= 0
 			StorageUtil.AdjustIntValue(npc, KEY_SCORE + pose, SCORE_RATED)
+			matched += 1
 		EndIf
 		i += 1
 	EndWhile
-	StorageUtil.SetIntValue(npc, KEY_RATED, 1)
+	; no name in the catalogue: asked again next scene, at most RATE_TRIES times (never left with no favourites for good)
+	If matched > 0 || StorageUtil.AdjustIntValue(npc, KEY_RATE_TRIES, 1) >= RATE_TRIES
+		StorageUtil.SetIntValue(npc, KEY_RATED, 1)
+		StorageUtil.UnsetIntValue(npc, KEY_RATE_TRIES)
+	EndIf
 EndEvent
 
 ; ---------------------------------------------------------------------------
@@ -205,11 +219,15 @@ Event OnChangeAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 		Return
 	EndIf
 	; Flows play only for a two-person scene with an opposite-sex partner: the rest is OStim's own menu.
-	If !Flows.PartnerOf(threadID)
+	Actor partner = Flows.PartnerOf(threadID)
+	If !partner
 		If toldMenuThread != threadID
 			toldMenuThread = threadID
 			AddMantellaEvent("Positions for this pair are picked in OStim's own menu, so they carry on as they were.")
 		EndIf
+		Return
+	ElseIf (akSpeaker as Actor) != partner
+		; only the player's partner in the scene changes it, never someone else in the talk
 		Return
 	EndIf
 	If !Flows.PlayPose(pose)

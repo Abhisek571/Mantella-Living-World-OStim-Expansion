@@ -36,6 +36,7 @@ EXCLUDE_WORDS = ['test', 'tied', 'choke', 'riekling', 'creature', 'rune', 'spear
                  'shota', 'loli', 'child', 'kid', 'teen', 'underage', 'young']
 SEQ_PREFIX = 'MAEF'
 FLOWS_MOD = 'Mantella Living World - OStim Expansion - Flows'
+NOT_ENABLED = 3  # exit code with --auto: the mod this copy is in is off in the profile read (the setup tries another copy)
 INI_KEYS = ('selected_profile', 'base_directory', 'mod_directory', 'profiles_directory')
 
 
@@ -444,10 +445,16 @@ def main():
         if not os.path.isdir(instance['mods']):
             raise SystemExit(f'MO2 mods folder not found: {instance["mods"]}')
         profile = pick_profile(instance, args.profile)
-        print(f'Mod Organizer 2: {instance["name"]}\nMods: {instance["mods"]}\nProfile: {profile}')
+        chosen = '' if args.profile else (' (the profile last selected in Mod Organizer 2; for another one run flowgen.py '
+                                          '--auto --profile "<name>")')
+        print(f'Mod Organizer 2: {instance["name"]}\nMods: {instance["mods"]}\nProfile: {profile}{chosen}')
         args.out = args.out or os.path.join(instance['mods'], FLOWS_MOD)
         out_mod = os.path.basename(os.path.normpath(args.out))
         mods = enabled_mods(instance['profiles'], profile)
+        here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # the mod this copy is in
+        if args.auto and same_folder(os.path.dirname(here), instance['mods']) and os.path.basename(here) not in mods:
+            print(f'"{os.path.basename(here)}" is not enabled in profile "{profile}": no flows built from this copy.')
+            sys.exit(NOT_ENABLED)
         lib = Library(*read_scenes(instance['mods'], mods, skip_mod=out_mod))
         looked_in = f'the {len(mods)} mods enabled in profile "{profile}"'
     moves = natural_moves(lib)

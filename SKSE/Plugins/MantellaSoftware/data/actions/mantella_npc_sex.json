@@ -5,8 +5,8 @@
   ],
   "identifier": "mantella_mlw_sex",
   "name": "SexWithPlayer",
-  "description": "Starts an OStim scene between the speaking NPC and the player, once the player confirms.",
-  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered only to NPCs intimate with you (decided by the Hub). Handled by this module, which asks the player first; the file name stays so the Community Resources action is replaced.",
+  "description": "Starts a sex scene between the speaking NPC and the player, after the player confirms.",
+  "note": "Replaces the Mantella Community Resources - ostim action of the same name. Offered as the Hub decides (Intimacy: NPC decides or Lovers only); the NPC accepts or declines, and a decline is shown and remembered. Handled by this module, which asks the player first; the file name stays so the Community Resources action is replaced.",
   "key": "SexWithPlayer",
   "enabled": true,
   "lw_gate": "intimate",
@@ -23,13 +23,27 @@
     "target": {
       "type": "string",
       "description": "The player."
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "accept",
+        "decline"
+      ],
+      "description": "The NPC's own choice as who they are: accept if they want it now, else decline (nothing starts; it is remembered)."
+    },
+    "reason": {
+      "type": "string",
+      "description": "A few words, in the NPC's own words."
     }
   },
   "required": [
     "source",
-    "target"
+    "target",
+    "decision",
+    "reason"
   ],
-  "prompt": "ANIMATION TRIGGER: starts a sex scene with the player. Use it when the player clearly asks for sex now or clearly agrees to it. Only the player's own clear yes in this conversation counts; an NPC's wish or an event line is not enough. Never name a child. Do not use it for flirting, for talk about sex some other time, or while a sex scene is already running. During a kiss, hug, dance or other affection scene it is fine: that scene ends first.\n\nIf it applies, begin your response with '{key}:'.",
+  "prompt": "ANIMATION TRIGGER: starts a sex scene with the player. Use it when the player clearly asks for sex now or clearly agrees to it, with decision accept if the NPC wants it or decline if not (the NPC decides as the person they are and may refuse), and a short reason. Only the player's own clear yes in this conversation counts; an NPC's wish or an event line is not enough. Never name a child. Do not use it for flirting, for talk about sex some other time, or while a sex scene is already running. During a kiss, hug, dance or other affection scene it is fine: that scene ends first.\n\nIf it applies, begin your response with '{key}:'.",
   "allowed_games": [
     "skyrim"
   ],

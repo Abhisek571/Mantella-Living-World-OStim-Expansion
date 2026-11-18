@@ -28,6 +28,9 @@ Event OnInit()
 EndEvent
 
 Event OnNpcAdded(Form akActor)
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Bystander,OnNpcAdded_start,\n", true, false)
+	EndIf
 	Actor npc = akActor as Actor
 	If !npc || npc == PlayerRef || MAE_Text.IsChildActor(npc)
 		Return
@@ -43,9 +46,15 @@ Event OnNpcAdded(Form akActor)
 		talkers[i] = npc
 		sinceComment[i] = MIN_CLIMAX_GAP
 	EndIf
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MAE_Bystander,OnNpcAdded_end,\n", true, false)
+	EndIf
 EndEvent
 
 Event OnNpcRemoved(Form akActor)
+	If !talkers
+		Return
+	EndIf
 	int i = talkers.Find(akActor as Actor)
 	If i >= 0
 		talkers[i] = None
@@ -73,7 +82,7 @@ Actor[] Function Candidates(Actor[] akSceneActors)
 	int i = 0
 	While i < talkers.Length
 		Actor npc = talkers[i]
-		If npc && akSceneActors.Find(npc) < 0 && !npc.IsDead() && !MAE_Text.IsChildActor(npc)
+		If npc && akSceneActors.Find(npc) < 0 && !npc.IsDead() && !MAE_Text.IsChildActor(npc) && MAE_Text.InTalk(npc)
 			result[n] = npc
 			n += 1
 		EndIf

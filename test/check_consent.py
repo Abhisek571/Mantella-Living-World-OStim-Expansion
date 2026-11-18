@@ -13,6 +13,18 @@
 6. Change position in a same-sex or group scene points to OStim's menu instead of failing every time.
 7. The Actions For Mantella fix (D:/coding/ActionsForMantella-OStim, when present): conversation members only, no
    child.
+8. The Hub's standing (Mantella-Living-World-Hub next to this repo): an absolute command makes an NPC close and
+   intimate for these re-checks only after the child check, only until its game time, and never in the NPC file
+   Mantella's side reads; the hotkey flags no child.
+9. The NPC decides: the scene actions carry a required decision (accept or decline) and reason; a decline is handled
+   before anything resolves or starts, is shown and told to the talk, and says nothing with a child in the talk.
+10. No control characters in the sources (a backspace once stood in a regex where a word boundary was meant).
+11. The Hub's intimate standing checks for a child first, in every Intimacy mode.
+12. A child far from the player (another interior cell, past the far distance, or out of sight past the hidden
+    distance) is taken out of the talk: every few seconds while the player talks, when Mantella's text box opens, and
+    before every scene action; one close by still blocks. ChildLeaves removes only children and is offered only while
+    a child is in the talk; children nearby but not in the talk are written for the Hub's line; the distances are
+    settings with defaults; the scene box names OStim.
 
 usage: py -3 check_consent.py [--afm D:/coding/ActionsForMantella-OStim]
 Exit code 1 on any failure.
@@ -31,8 +43,8 @@ GATES = {
     'mantella_npc_sex_npc.json': ('mantella_mlw_sex_npc', 'intimate'),
     'mantella_npc_undress.json': ('mantella_mlw_undress', 'intimate'),
     'mantella_npc_redress.json': ('mantella_mlw_redress', 'close'),
-    'mantella_mae_change_position.json': ('mantella_mae_change_position', 'intimate'),
-    'mantella_mae_rate_positions.json': ('mantella_mae_rate_positions', 'intimate+unrated'),
+    'mantella_mae_change_position.json': ('mantella_mae_change_position', 'intimate+scene'),
+    'mantella_mae_rate_positions.json': ('mantella_mae_rate_positions', 'intimate+unrated+scene'),
     'mantella_mlw_affection.json': ('mantella_mlw_affection', 'adult+affection=1'),  # the couple dance is open to anyone
 }
 OBEY = re.compile(r'event log|CONSECUTIVE OVERRIDE|PLAYER EVENT|CRITICAL SYSTEM COMMAND', re.I)
@@ -187,7 +199,7 @@ def identity():
           'a new chain only after a woman partner climaxes and is not satisfied')
     for fn in ('mantella_mlw_affection.json', 'mantella_mae_change_position.json'):
         d = json.load(open(os.path.join(ACTIONS, fn), encoding='utf-8'))
-        check(not re.search(r'(she|her)', d['description'], re.I), f'{fn}: description uses neutral wording')
+        check(not re.search(r'\b(she|her)\b', d['description'], re.I), f'{fn}: description uses neutral wording')
 
 
 def afm(path):
@@ -206,9 +218,283 @@ def afm(path):
     check('IsChild()' in child and '"Child"' in child, 'IsChildActor checks the flag and the race')
 
 
+def hub_commands(hub):
+    print("== absolute commands in the Hub's standing")
+    channel_path = os.path.join(hub, 'Source', 'Scripts', 'MLW_Channel.psc')
+    command_path = os.path.join(hub, 'Source', 'Scripts', 'MLW_Command.psc')
+    if not (os.path.exists(channel_path) and os.path.exists(command_path)):
+        print(f'  skip {hub} not found')
+        return
+    channel, command = code(channel_path), code(command_path)
+    for value, standing in (('IntimateValue', 'IntimateStanding'), ('CloseValue', 'CloseStanding')):
+        body = function(channel, value)
+        check(re.search(r'\(Actor akNpc\)', body.strip().split('\n')[0]) is not None, f'{value} keeps its one-argument signature')
+        check(standing + '(akNpc)' in body and '!IsMinor(akNpc) && Commanded(akNpc)' in body,
+              f'{value}: a command counts only after the child check')
+        check(function(channel, standing).find('IsMinor(akNpc)') >= 0 and 'Commanded' not in function(channel, standing),
+              f'{standing}: child check, no command')
+    commanded = function(channel, 'Commanded')
+    check('"MLW_CommandUntil"' in commanded and 'GetCurrentGameTime()' in commanded, 'Commanded ends by game time')
+    write = function(channel, 'WriteNpc')
+    check('CloseStanding(akNpc)' in write and 'IntimateStanding(akNpc)' in write and 'CloseValue(' not in write and 'IntimateValue(' not in write,
+          "the NPC file holds the standing without commands (Mantella's side adds and ends them)")
+    flag = function(command, 'FlagNpcs')
+    check('!akChannel.IsMinor(npc)' in flag and '"MLW_CommandUntil"' in flag, 'the hotkey never flags a child')
+    check('FlagNpcs(' in function(command, 'Give'), 'Give flags the NPCs it gave the command to')
+
+
+SCENE_ACTIONS = {'mantella_npc_sex.json': 'OnSexAdvanced', 'mantella_npc_sex_group.json': 'OnGroupAdvanced',
+                 'mantella_npc_sex_npc.json': 'OnSexNpcAdvanced'}
+
+
+def decisions():
+    print("== the NPC decides: decision and reason on the scene actions, a decline starts nothing")
+    for fn in SCENE_ACTIONS:
+        d = json.load(open(os.path.join(ACTIONS, fn), encoding='utf-8'))
+        params = d.get('parameters', {})
+        check(params.get('decision', {}).get('enum') == ['accept', 'decline'], f'{fn}: decision is accept or decline')
+        check(params.get('reason', {}).get('type') == 'string', f'{fn}: a reason')
+        check({'decision', 'reason'} <= set(d.get('required', [])), f'{fn}: decision and reason are required')
+        check('decline' in d['prompt'] and 'may refuse' in d['prompt'], f'{fn}: the prompt lets the NPC refuse')
+    ask = code(os.path.join(SCRIPTS, 'MAE_Ask.psc'))
+    for ev in ('OnSexAdvanced', 'OnGroupAdvanced'):
+        body = function(ask, ev)
+        check(0 <= body.find('Declined(') < body.find('Resolve('), f'{ev}: a decline is handled before anything resolves')
+    dec = function(ask, 'Declined')
+    go_on = re.search(r'string decision = SKSE_HTTP\.getString\(aiArguments, "decision", ""\)\s+'
+                      r'If decision == "" \|\| decision == "accept"\s+Return false', dec)
+    check(bool(go_on) and '!= "decline"' not in dec,
+          'only "accept" or no decision (keyword actions, an older Mantella) goes on; "no", "refuse" or any other word declines')
+    check('MAE_Text.MinorInTalk()' in dec and dec.find('MAE_Text.MinorInTalk()') < dec.find('MLW_Notify.Result('),
+          'nothing is said about it with a child in the talk')
+    check('MAE_Text.IsChildActor(npc)' in dec and 'MAE_Text.TalkActor(' in dec, 'a decline names conversation members only, never a child')
+    check('MLW_Notify.Result(hud, fact)' in dec, 'a decline is a HUD line and an event line (remembered with the talk)')
+    check('QuickStart' not in dec and 'Request(' not in dec and 'Ask(' not in dec, 'a decline starts nothing and asks nothing')
+    check('getString(aiArguments, "reason", "")' in function(ask, 'Reason'), 'the reason is read')
+    npc = function(code(os.path.join(SCRIPTS, 'MAE_Npc.psc')), 'OnSexNpcAdvanced')
+    i = npc.find('Ask.Declined(')
+    check(0 <= i < npc.find('Allowed(') and i < npc.find('Ask.Request(') and npc.find('MinorPresent()') < i,
+          'SexWithNPC: a decline is handled after the child check and before anything starts')
+    before = npc[:i]
+    check('"sex with " + targetName' not in before and re.search(r'"sex with " \+ \w+\.GetDisplayName\(\)', before) is not None,
+          "SexWithNPC decline: the target is named by its game name, never by the model's text")
+    named = re.search(r'If (.*?)\n\s*what = "sex with " \+ target\.GetDisplayName\(\)', before)
+    check(named is not None and 'target' in named.group(1) and '!MAE_Text.IsChildActor(target)' in named.group(1)
+          and 'MAE_Text.TalkActor(conversation, targetName)' in before,
+          'SexWithNPC decline: a target is named only when it is an adult in the conversation, else not named at all')
+
+
+def control_chars():
+    print('== no control characters in sources (a backspace once stood where \\b was meant)')
+    bad = []
+    for top in ('test', 'tools', 'Source', 'SKSE'):
+        for d, _, files in os.walk(os.path.join(REPO, top)):
+            for f in files:
+                if f.endswith(('.py', '.psc', '.json', '.sh', '.cmd', '.txt')):
+                    data = open(os.path.join(d, f), 'rb').read()
+                    if re.search(rb'[\x00-\x08\x0b\x0c\x0e-\x1f]', data):
+                        bad.append(os.path.relpath(os.path.join(d, f), REPO))
+    check(not bad, f'no control characters other than tab and line ends: {bad}')
+
+
+def hub_intimacy(hub):
+    print("== the Hub's intimacy standing: the child block in every mode")
+    path = os.path.join(hub, 'Source', 'Scripts', 'MLW_Channel.psc')
+    if not os.path.exists(path):
+        print(f'  skip {hub} not found')
+        return
+    channel = code(path)
+    standing = function(channel, 'IntimateStanding')
+    minor, never, mode = standing.find('IsMinor(akNpc)'), standing.find('"never_intimate"'), standing.find('IntimacyCheckPasses(akNpc)')
+    check(0 <= minor < never < mode, 'IntimateStanding: the child check first, then Intimacy: never, then the Intimacy setting')
+    child = function(channel, 'IsMinor')
+    check('akActor.IsChild()' in child and '"Child"' in child and 'GetRaceEditorID' in child, 'IsMinor: the child flag and the race')
+    check('IntimacyMode() == 1' in function(channel, 'IntimacyCheckPasses'), 'NPC decides (1) opens the gate for adults only')
+
+
+def scene_without_talk():
+    """Live test 12: two OStim scenes with Gerdur ended before any Mantella talk ran, and nothing was recorded. A scene
+    that ends with no talk running is kept on each adult partner (at most MAX_PENDING) and told to her next talk."""
+    print("== a scene with no talk running is kept for the partner's next talk")
+    live = code(os.path.join(SCRIPTS, 'MAE_Live.psc'))
+    summary = function(live, 'SendSummary')
+    keep, run, minor = summary.find('KeepForLater(line)'), summary.find('!ConversationRunning()'), summary.find('MAE_Text.MinorInTalk()')
+    check(0 <= run < keep and 0 <= minor < keep and 'SendLine(line, 0.0)' in summary[keep:],
+          'SendSummary: with no talk running (or a child in it) the line is kept, else told at once with a turn (live test 18)')
+    later = function(live, 'KeepForLater')
+    check('!MAE_Text.IsChildActor(partner)' in later and 'partner != PlayerRef' in later and 'MAX_PENDING' in later
+          and 'StorageUtil.StringListRemoveAt(partner, KEY_PENDING, 0)' in later
+          and 'StorageUtil.AdjustIntValue(partner, KEY_PENDING_EARLIER, 1)' in later, 'KeepForLater: adult partners only; past MAX_PENDING the oldest is counted, not lost')
+    added_text = function(live, 'OnNpcAdded')
+    check('KEY_PENDING_EARLIER' in added_text and 'more scene(s) together before these' in added_text, 'OnNpcAdded tells the counted earlier scenes too')
+    raw = read(os.path.join(SCRIPTS, 'MAE_Live.psc'))  # raw source: code() drops {...} doc blocks, even inside strings
+    check('" {t=" + StringUtil.Substring(entry, 0, bar) + "}"' in raw, "OnNpcAdded adds the scene game time for the Hub to date and pair it")
+    added = function(live, 'OnNpcAdded')
+    check('RegisterForModEvent("MantellaConversation_NPC_Added", "OnNpcAdded")' in function(live, 'Register'),
+          'MAE_Live listens for a partner joining a talk')
+    check('MAE_Text.MinorInTalk()' in added and 'AgoText(' in added and 'StorageUtil.StringListClear(npc, KEY_PENDING)' in added
+          and added.find('AddEvent(') < added.find('StringListClear'), 'OnNpcAdded: told with how long ago, then cleared; kept while a child is in the talk')
+
+
+def rating_and_target():
+    """RatePositions marked her rated even when no name matched the catalogue (favourites empty for good), and
+    SexWithNPC offered "the player" as a target while its prompt and SexWithPlayer say otherwise."""
+    print("== a rating with no known position is asked again; SexWithNPC is NPC to NPC")
+    rate = function(code(os.path.join(SCRIPTS, 'MAE_Positions.psc')), 'OnRateAdvanced')
+    check('matched += 1' in rate and 'If matched > 0 || StorageUtil.AdjustIntValue(npc, KEY_RATE_TRIES, 1) >= RATE_TRIES' in rate
+          and rate.find('If matched > 0') < rate.find('StorageUtil.SetIntValue(npc, KEY_RATED, 1)'),
+          'OnRateAdvanced: rated only when a name matched, or after RATE_TRIES tries')
+    d = json.load(open(os.path.join(ACTIONS, 'mantella_npc_sex_npc.json'), encoding='utf-8'))
+    target = d['parameters']['target']['description'].lower()
+    check('never the player' in target and 'or the player' not in target and 'other person' not in d['description'],
+          'SexWithNPC: the target is another NPC, never the player (SexWithPlayer is for that)')
+
+
+def scene_results():
+    """A radiant talk nearby heard the player's scene lines; a child who joined while the box was open heard the No or
+    Skip line; an accepted action that started nothing told the model nothing; the accept day was stamped before any
+    check; a repeated SexWithNPC reported a failure while the first one's scene ran; the kinds cache outlived an update."""
+    print('== scene lines and results')
+    live = code(os.path.join(SCRIPTS, 'MAE_Live.psc'))
+    check('MAE_Text.PlayerInTalk()' in function(live, 'ConversationRunning') and 'IsRunning()' not in function(live, 'ConversationRunning'),
+          'MAE_Live.ConversationRunning means a talk the player is in')
+    check('!MAE_Text.PlayerInTalk()' in function(live, 'SendLine'), 'MAE_Live.SendLine sends nothing to a talk the player is not in')
+    summary = function(live, 'SendSummary')
+    check(re.search(r'If !ConversationRunning\(\) \|\| MAE_Text\.MinorInTalk\(\)\s*KeepForLater\(line\)', summary) is not None,
+          'SendSummary keeps the summary for her next talk with the player when the talk is radiant or has a child')
+    ask = code(os.path.join(SCRIPTS, 'MAE_Ask.psc'))
+    req = function(ask, 'RequestScene')
+    box, yes = req.find('Ask(akNpcs)'), req.find('If answer == "Yes"')
+    child = req.find('MAE_Text.MinorInTalk()', box)
+    check(box < child < yes, 'RequestScene checks for a child after the box for every answer, before the Yes branch')
+    for ev in ('OnSexAdvanced', 'OnGroupAdvanced'):
+        body = function(ask, ev)
+        check('NothingStarts(' in body, f'{ev}: an accept that resolves nobody is told to the talk')
+        check('MarkAccepted' not in body, f'{ev}: an accept alone marks nothing')
+    check('Named(akConversation, aiArguments)' in function(ask, 'OnGroupAdvanced') and 'abNamePeople' in req,
+          'a group start with someone left out names who takes part')
+    check('NothingStarts(' in function(ask, 'Request'), 'Request: a request while the box is open is told to the talk')
+    check(req.count('NothingStarts(') >= 2, 'RequestScene: a request during another scene is told to the talk')
+    check('If !MAE_Text.MinorInTalk()' in function(ask, 'NothingStarts'), 'NothingStarts says nothing with a child in the talk')
+    quick = req.find('QuickStart(actors) < 0')
+    check(quick >= 0 and req.find('MarkAccepted(akNpcs)', quick) > quick and req.find('MarkAccepted(akNpcs)') > quick,
+          'the accept day is stamped only after a real start (or Skip)')
+    aff = code(os.path.join(SCRIPTS, 'MAE_Affection.psc'))
+    check('!MAE_Text.PlayerInTalk()' in function(aff, 'RequestScene'), 'MAE_Affection.RequestScene refuses when the player is not in the talk')
+    kinds = function(aff, 'AvailableKinds')
+    check('"intimate_kinds"' in kinds and '"open_kinds"' in kinds and kinds.find('lists') < kinds.find('string cache'),
+          'the kinds cache key carries the kind lists')
+    sex = function(code(os.path.join(SCRIPTS, 'MAE_Npc.psc')), 'OnSexNpcAdvanced')
+    fail = sex.find('QuickStart(actors) < 0')
+    check(fail >= 0 and 0 <= sex.find('OActor.IsInOStim(source) && OActor.IsInOStim(target)', fail) < sex.find('FAILED|QuickStart'),
+          'SexWithNPC: a repeat whose pair is already in a scene reports no failure')
+
+
+def child_far():
+    print('== a child far away leaves the talk; one close by blocks')
+    text = code(os.path.join(SCRIPTS, 'MAE_Text.psc'))
+    far, remove = function(text, 'ChildFar'), function(text, 'RemoveFarChildren')
+    check('IsInterior()' in far and 'child_far_distance' in far and 'child_hidden_distance' in far and 'HasLOS' in far,
+          'ChildFar: another interior cell, the far distance, and out of sight past the hidden distance')
+    check('IsChildActor(member)' in remove and 'ChildFar(member)' in remove and 'RemoveActorsFromConversation(far)' in remove
+          and '!adult' in remove, 'RemoveFarChildren: only far children, only with an adult NPC in the talk')
+    ask = code(os.path.join(SCRIPTS, 'MAE_Ask.psc'))
+    for name in ('OnSexAdvanced', 'OnGroupAdvanced'):
+        body = function(ask, name)
+        check(0 <= body.find('RemoveFarChildren()') < body.find('Declined('),
+              f'{name}: a far child is out of the talk before any child check')
+    npc = code(os.path.join(SCRIPTS, 'MAE_Npc.psc'))
+    present = function(npc, 'MinorPresent')
+    check(0 <= present.find('RemoveFarChildren()') < present.find('MinorInTalk()'), 'MinorPresent: far children out first, then the block')
+    check('"CustomMenu"' in function(npc, 'Register') and 'CheckChildren()' in function(npc, 'OnMenuOpen'),
+          "the check runs again when Mantella's text box opens, before the line goes out")
+    check('RemoveFarChildren()' in function(npc, 'CheckChildren') and 'RegisterForSingleUpdate(WATCH_SECONDS)' in function(npc, 'CheckChildren'),
+          'the watch takes far children out every few seconds while the player talks')
+    leave = function(npc, 'OnChildLeaveAdvanced')
+    check('IsChildActor(npc)' in leave and 'RemoveActorsFromConversation' in leave, 'ChildLeaves removes only children in the talk')
+    live = code(os.path.join(SCRIPTS, 'MAE_Live.psc'))
+    check('children.Watch()' in function(live, 'OnNpcAdded'), 'every join starts the watch (saves made before it too)')
+    near = function(npc, 'NearChildren')
+    check('IsChildActor(npc)' in near and '!MAE_Text.InTalk(npc)' in near, 'children nearby but not in the talk are listed, never blocked')
+    d = json.load(open(os.path.join(ACTIONS, 'mantella_mlw_child_leave.json'), encoding='utf-8'))
+    check(d.get('identifier') == 'mantella_mlw_child_leave' and d.get('lw_gate') == 'minor=1' and d.get('radiant') is False,
+          'ChildLeaves: own identifier, offered only while a child is in the talk, not radiant')
+    settings = json.load(open(os.path.join(REPO, 'SKSE', 'Plugins', 'StorageUtilData', 'MantellaAdultExpansion',
+                                           'child_settings.json'), encoding='utf-8'))['float']
+    check(settings == {'child_far_distance': 1024.0, 'child_hidden_distance': 384.0, 'child_near_distance': 2048.0},
+          f'child_settings.json defaults {settings}')
+    box = function(ask, 'Ask')
+    check('OStim scene:' in box and 'OStim group scene:' in box and 'want to start a scene' not in box,
+          'the box names OStim and says what each answer does')
+
+
+def audit_2026_11():
+    """A child who joined during the walk heard the affection line; a refused child was named to the talk; actors
+    added in OStim's picker were never checked; a bystander's position change moved the player's scene; every join
+    copied OStim's whole scene list and looked for chairs before the kinds cache was read."""
+    print('== child guards at the scene start, bystanders, kinds cache')
+    text = code(os.path.join(SCRIPTS, 'MAE_Text.psc'))
+    cit = function(text, 'ChildInThread')
+    check('OThread.GetActors(aiThreadID)' in cit and 'IsChildActor(actors[i])' in cit and 'actors &&' not in cit,
+          'ChildInThread checks every actor of the thread (no truth test on the native array)')
+    aff = code(os.path.join(SCRIPTS, 'MAE_Affection.psc'))
+    start = function(aff, 'OnThreadStart')
+    other = start.find('If !OThread.HasMetadata(id, METADATA)')
+    net = start.find('MAE_Text.ChildInThread(id)', other)
+    check(0 <= other < net < start.find('StopThread(id)', net) < start.find('MarkScene(id)'),
+          'any thread with a child in it is stopped before anything else happens to it')
+    line = start.find('Positions.AddMantellaEvent(Line("line_"')
+    guard = start.find('If MAE_Text.MinorInTalk() || MAE_Text.ChildInThread(id)')
+    check(0 <= guard < line and 'stopOnStart = true' in start[guard:line] and 'silentEnd = true' in start[guard:line]
+          and 'StopThread(id)' in start[guard:line], 'affection start: a child in the talk stops it with no line and no score')
+    end = function(aff, 'OnThreadEnd')
+    check('If played && !silentEnd && !MAE_Text.MinorInTalk()' in end, 'affection end: no end line with a child in the talk')
+    npc = code(os.path.join(SCRIPTS, 'MAE_Npc.psc'))
+    allowed = function(npc, 'Allowed')
+    at = allowed.find('If MAE_Text.IsChildActor(npc)')
+    block = allowed[at:allowed.find('Return None', at)] if at >= 0 else ''
+    check(block != '' and 'AddMantellaEvent' not in block and 'Log(' in block, 'Allowed logs a refused child but tells the talk nothing')
+    check('to a child' not in npc, 'MAE_Npc never sends a line about a child')
+    change = function(code(os.path.join(SCRIPTS, 'MAE_Positions.psc')), 'OnChangeAdvanced')
+    who = change.find('(akSpeaker as Actor) != partner')
+    check(0 <= who < change.find('Flows.PlayPose('), 'change position: only the scene partner moves the scene')
+    kinds = function(aff, 'AvailableKinds')
+    hit = kinds.find('If StorageUtil.HasStringValue(None, cache + "_close")')
+    check(0 <= hit < kinds.find('If !fetched') < kinds.rfind('OLibrary.GetAllScenes()'),
+          'AvailableKinds reads the cache before copying the scene list (only the first join after a load counts them)')
+    check('FreeFurniture(' not in kinds and 'FreeFurniture("chair")' in function(aff, 'UseCache'),
+          'AvailableKinds looks for a chair only when a cached kind needs one')
+    check(kinds.rfind('cache + "_close"') > kinds.rfind('cache + "_open"') and kinds.rfind('cache + "_close"') > kinds.rfind('_nochair'),
+          'the cache entry the check reads is written last')
+    pick = function(aff, 'PickScene')
+    check('If !asAll' not in pick and 'If asAll.Length == 0' in pick, 'PickScene tests the passed scene list by length')
+    check('sceneCount = -1' in function(aff, 'OnMenuClose'), 'the scene count is read again after every load')
+    live = code(os.path.join(SCRIPTS, 'MAE_Live.psc'))
+    partners = function(live, 'Partners')
+    kid = partners.find('If MAE_Text.IsChildActor(actors[i])')
+    check(0 <= kid < partners.find('count += 1') and 'Return ""' in partners[kid:partners.find('count += 1')],
+          'Partners returns "" for a scene with a child in it, before naming anyone')
+    for ev in ('OnSceneChanged', 'OnOrgasm'):
+        body = function(live, ev)
+        empty = body.find('If partners == ""')
+        check(0 <= empty < body.find('DropChildScene(threadID)') < body.find('Return', empty) < body.find('SendLine(')
+              and 'BeginScene(' not in body[:body.find('Return', empty)], f'{ev}: a scene with a child sends nothing and is not tracked')
+    drop = function(live, 'DropChildScene')
+    check('MAE_Text.ChildInThread(aiThreadID)' in drop and 'sceneThread = -1' in drop and 'scenePartners = ""' in drop,
+          'a child added to the tracked scene drops it (no pace, excitement or summary line)')
+    text = code(os.path.join(SCRIPTS, 'MAE_Text.psc'))
+    check('akActor.IsOnMount()' in function(text, 'CannotConsent'), 'CannotConsent: someone riding cannot agree')
+    check('player.IsOnMount()' in function(text, 'PlayerCanConsent'), 'PlayerCanConsent: not while the player rides')
+    by = code(os.path.join(SCRIPTS, 'MAE_Bystander.psc'))
+    check('MAE_Text.InTalk(npc)' in function(by, 'Candidates'), 'bystander remarks only from someone still in the talk')
+    removed = function(by, 'OnNpcRemoved')
+    check(0 <= removed.find('If !talkers') < removed.find('talkers.Find('), 'OnNpcRemoved never searches a missing list')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--afm', default=os.path.join(os.path.dirname(REPO), 'ActionsForMantella-OStim'))
+    ap.add_argument('--hub', default=os.path.join(os.path.dirname(REPO), 'Mantella-Living-World-Hub'))
     a = ap.parse_args()
     actions()
     npc_script()
@@ -217,6 +503,15 @@ def main():
     affection_kinds()
     identity()
     afm(a.afm)
+    hub_commands(a.hub)
+    decisions()
+    control_chars()
+    hub_intimacy(a.hub)
+    scene_without_talk()
+    rating_and_target()
+    scene_results()
+    child_far()
+    audit_2026_11()
     print(f'\n{len(fails)} failures')
     sys.exit(1 if fails else 0)
 
