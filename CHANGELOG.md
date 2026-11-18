@@ -2,7 +2,7 @@
 
 Every change to Mantella Living World - OStim Expansion. The Nexus page lists only the main changes for each version.
 
-## Unreleased
+## 1.2.1 (2026-11-18)
 
 ### New
 - A child in the talk who is far from you (another room or building, farther than about 15 m, or out of sight past about 5 m) is taken out of the talk by the game before your next line goes out: checked every 3 seconds while you talk, when Mantella's text box opens and before every scene action. A child close by still blocks every scene. Distances in SKSE\Plugins\StorageUtilData\MantellaAdultExpansion\child_settings.json.
