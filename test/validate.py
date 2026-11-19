@@ -52,10 +52,11 @@ EXPECT = {   # regex; a literal | is \|
 
 def load(path):
     rows = []
-    for raw in open(path, encoding='utf-8', errors='replace'):
-        raw = raw.rstrip('\n')
-        if '|' in raw:
-            rows.append(raw.split('|', 1)[1])
+    with open(path, encoding='utf-8', errors='replace') as f:
+        for raw in f:
+            raw = raw.rstrip('\n')
+            if '|' in raw:
+                rows.append(raw.split('|', 1)[1])
     return rows
 
 
@@ -70,100 +71,125 @@ def field(parts, name):
     return None
 
 
-def main():
-    log, cat_path = sys.argv[1], sys.argv[2]
-    c = json.load(open(cat_path, encoding='utf-8'))
-    poses = c['stringList']['poses']
+def split_scenarios(rows):
+    """Log rows -> (finish excitement from the test setup or None, [[scenario name, [its lines]], ...])."""
     finish_at = None
-    fails, notes = [], []
     scenarios = []          # [name, [lines]]
-    for line in load(log):
+    for line in rows:
         if line.lower().startswith('test|setup|finish='):
             finish_at = float(line.split('=')[1])
         if line.lower().startswith('test|begin|'):
             scenarios.append([line.split('|')[2].lower(), []])
         elif scenarios:
             scenarios[-1][1].append(line)
+    return finish_at, scenarios
+
+
+def check_flow_sets(name, lines, poses, finish_at):
+    """The flow rules for every FLOW|SET line of one scenario. Returns (problems, sets played)."""
+    bad = []
+    prev = None; used = set(); chain_poses = {}; excited = {}
+    takeover = False; after_climax = None; satisfied = None; requested = None; finish_in_chain = False
+    sets = 0
+    for line in lines:
+        parts = line.split('|')
+        if line.lower().startswith('test|excite|'):
+            excited[parts[2]] = float(parts[3])
+        elif line.lower().startswith('test|satisfied|'):
+            satisfied = parts[3] == '1'
+        elif line.lower().startswith('flow|takeover|'):
+            takeover = True
+        elif line.lower().startswith('flow|climax|'):
+            after_climax = True
+        elif line.lower().startswith('flow|request|') and len(parts) == 3:
+            requested = parts[2]
+        elif line.lower().startswith('flow|set|'):
+            sets += 1
+            why, idx = parts[2].lower(), int(parts[3])
+            s = {k: (field(parts, k) or '').lower() for k in ('pack', 'pose', 'rank', 'furn', 'chain')}
+            s['theme'] = re.search(r'\|theme=(.*?)\|chain=', line).group(1).lower()
+            pose, rank, chain = int(s['pose']), int(s['rank']), int(s['chain'])
+            where = f'{name}: set {idx} ({why})'
+            if s['theme'] not in ALLOWED_THEMES:
+                bad.append(f'{where}: theme {s["theme"]} not allowed')
+            if takeover and why != 'request':
+                bad.append(f'{where}: played after the player took over')
+            if why == 'finish':
+                if rank != 3: bad.append(f'{where}: finish set has rank {rank}')
+                if finish_at is not None and not any(v >= finish_at for v in excited.values()):
+                    bad.append(f'{where}: finish before anyone reached excitement {finish_at}')
+                if finish_in_chain: bad.append(f'{where}: second finish in one chain')
+                finish_in_chain = True
+            else:
+                if rank >= 3: bad.append(f'{where}: rank {rank} outside a finish')
+                if idx in used: bad.append(f'{where}: set reused in the scene')
+                used.add(idx)
+            if why == 'opener':
+                if rank > 2: bad.append(f'{where}: opener rank {rank}')
+                chain_poses = {}
+            elif why == 'next' and prev:
+                if s['pack'] != prev['pack']: bad.append(f'{where}: pack changed {prev["pack"]} -> {s["pack"]}')
+                if s['furn'] != prev['furn']: bad.append(f'{where}: furniture changed')
+                if s['theme'] != prev['theme']: bad.append(f'{where}: theme changed')
+                if rank < int(prev['rank']): bad.append(f'{where}: intensity dropped {prev["rank"]} -> {rank}')
+            elif why == 'new chain':
+                if not after_climax: bad.append(f'{where}: new chain without her climax')
+                if satisfied: bad.append(f'{where}: new chain although she was satisfied')
+                if prev and s['pack'] != prev['pack']: bad.append(f'{where}: new chain changed pack')
+                chain_poses = {}; finish_in_chain = False
+            elif why == 'request':
+                if requested is None or poses[pose].lower() != requested.lower():
+                    bad.append(f'{where}: request for {requested} played {poses[pose]}')
+                takeover = False; finish_in_chain = False
+            if why != 'finish':
+                chain_poses[pose] = chain_poses.get(pose, 0) + 1
+                if why != 'request' and chain_poses[pose] > MAX_POSE_PER_CHAIN:
+                    bad.append(f'{where}: pose {poses[pose]} {chain_poses[pose]} times in a chain')
+                if chain > CHAIN_SETS: bad.append(f'{where}: chain at {chain} sets')
+            if why != 'finish':
+                prev = s   # a finish may be borrowed from another pack; the chain goes on from its own set
+    return bad, sets
+
+
+def check_affection_timing(name, lines):
+    """No affection call too soon after the last end, and a played affection scene always scores."""
+    bad = []
+    for line in lines:
+        gap = re.search(r'(AFFECT\|CALL|ASK\|AFTER AFFECTION)\|.*\|sinceEnd=([-\d.]+)', line)
+        if gap and float(gap.group(2)) < RESTART_GAP:
+            bad.append(f'{name}: {gap.group(1)} {gap.group(2)} s after the last end')
+    # A played affection scene ends on its timer (unless something else ended it) and always scores.
+    if any(matches(l, r'AFFECT\|TIMING\|end\|') for l in lines) and any(matches(l, r'AFFECT\|TIMING\|start\|') for l in lines) \
+            and not any(matches(l, r'AFFECT\|STOP\|ended before') for l in lines) and not any(matches(l, r'AFFECT\|SCORE\|') for l in lines):
+        bad.append(f'{name}: affection scene ended without a score event')
+    return bad
+
+
+def check_expected(name, lines):
+    """What the scenario (by its MAE_Test.Begin name) must and must not log."""
+    bad = []
+    exp = EXPECT.get(name.split(':')[0], {'must': [], 'not': []})
+    for pat in exp['must']:
+        if not any(matches(l, pat) for l in lines):
+            bad.append(f'{name}: expected "{pat}" never logged')
+    for pat in exp['not']:
+        if any(matches(l, pat) for l in lines):
+            bad.append(f'{name}: "{pat}" logged but should not be')
+    return bad
+
+
+def main():
+    log, cat_path = sys.argv[1], sys.argv[2]
+    with open(cat_path, encoding='utf-8') as f:
+        poses = json.load(f)['stringList']['poses']
+    finish_at, scenarios = split_scenarios(load(log))
     if not scenarios:
         print('FAIL: no scenarios in the log'); sys.exit(1)
 
+    fails = []
     for name, lines in scenarios:
-        bad = []
-        prev = None; used = set(); chain_poses = {}; excited = {}
-        takeover = False; after_climax = None; satisfied = None; requested = None; finish_in_chain = False
-        sets = 0
-        for line in lines:
-            parts = line.split('|')
-            if line.lower().startswith('test|excite|'):
-                excited[parts[2]] = float(parts[3])
-            elif line.lower().startswith('test|satisfied|'):
-                satisfied = parts[3] == '1'
-            elif line.lower().startswith('flow|takeover|'):
-                takeover = True
-            elif line.lower().startswith('flow|climax|'):
-                after_climax = True
-            elif line.lower().startswith('flow|request|') and len(parts) == 3:
-                requested = parts[2]
-            elif line.lower().startswith('flow|set|'):
-                sets += 1
-                why, idx = parts[2].lower(), int(parts[3])
-                s = {k: (field(parts, k) or '').lower() for k in ('pack', 'pose', 'rank', 'furn', 'chain')}
-                s['theme'] = re.search(r'\|theme=(.*?)\|chain=', line).group(1).lower()
-                pose, rank, chain = int(s['pose']), int(s['rank']), int(s['chain'])
-                where = f'{name}: set {idx} ({why})'
-                if s['theme'] not in ALLOWED_THEMES:
-                    bad.append(f'{where}: theme {s["theme"]} not allowed')
-                if takeover and why != 'request':
-                    bad.append(f'{where}: played after the player took over')
-                if why == 'finish':
-                    if rank != 3: bad.append(f'{where}: finish set has rank {rank}')
-                    if finish_at is not None and not any(v >= finish_at for v in excited.values()):
-                        bad.append(f'{where}: finish before anyone reached excitement {finish_at}')
-                    if finish_in_chain: bad.append(f'{where}: second finish in one chain')
-                    finish_in_chain = True
-                else:
-                    if rank >= 3: bad.append(f'{where}: rank {rank} outside a finish')
-                    if idx in used: bad.append(f'{where}: set reused in the scene')
-                    used.add(idx)
-                if why == 'opener':
-                    if rank > 2: bad.append(f'{where}: opener rank {rank}')
-                    chain_poses = {}
-                elif why == 'next' and prev:
-                    if s['pack'] != prev['pack']: bad.append(f'{where}: pack changed {prev["pack"]} -> {s["pack"]}')
-                    if s['furn'] != prev['furn']: bad.append(f'{where}: furniture changed')
-                    if s['theme'] != prev['theme']: bad.append(f'{where}: theme changed')
-                    if rank < int(prev['rank']): bad.append(f'{where}: intensity dropped {prev["rank"]} -> {rank}')
-                elif why == 'new chain':
-                    if not after_climax: bad.append(f'{where}: new chain without her climax')
-                    if satisfied: bad.append(f'{where}: new chain although she was satisfied')
-                    if prev and s['pack'] != prev['pack']: bad.append(f'{where}: new chain changed pack')
-                    chain_poses = {}; finish_in_chain = False
-                elif why == 'request':
-                    if requested is None or poses[pose].lower() != requested.lower():
-                        bad.append(f'{where}: request for {requested} played {poses[pose]}')
-                    takeover = False; finish_in_chain = False
-                if why != 'finish':
-                    chain_poses[pose] = chain_poses.get(pose, 0) + 1
-                    if why != 'request' and chain_poses[pose] > MAX_POSE_PER_CHAIN:
-                        bad.append(f'{where}: pose {poses[pose]} {chain_poses[pose]} times in a chain')
-                    if chain > CHAIN_SETS: bad.append(f'{where}: chain at {chain} sets')
-                if why != 'finish':
-                    prev = s   # a finish may be borrowed from another pack; the chain goes on from its own set
-        for line in lines:
-            gap = re.search(r'(AFFECT\|CALL|ASK\|AFTER AFFECTION)\|.*\|sinceEnd=([-\d.]+)', line)
-            if gap and float(gap.group(2)) < RESTART_GAP:
-                bad.append(f'{name}: {gap.group(1)} {gap.group(2)} s after the last end')
-        # A played affection scene ends on its timer (unless something else ended it) and always scores.
-        if any(matches(l, r'AFFECT\|TIMING\|end\|') for l in lines) and any(matches(l, r'AFFECT\|TIMING\|start\|') for l in lines) \
-                and not any(matches(l, r'AFFECT\|STOP\|ended before') for l in lines) and not any(matches(l, r'AFFECT\|SCORE\|') for l in lines):
-            bad.append(f'{name}: affection scene ended without a score event')
-        exp = EXPECT.get(name.split(':')[0], {'must': [], 'not': []})
-        for pat in exp['must']:
-            if not any(matches(l, pat) for l in lines):
-                bad.append(f'{name}: expected "{pat}" never logged')
-        for pat in exp['not']:
-            if any(matches(l, pat) for l in lines):
-                bad.append(f'{name}: "{pat}" logged but should not be')
+        bad, sets = check_flow_sets(name, lines, poses, finish_at)
+        bad += check_affection_timing(name, lines) + check_expected(name, lines)
         status = 'ok' if not bad else 'FAIL'
         print(f'{status:4} {name}: {sets} sets, {len(lines)} lines')
         for b in bad:

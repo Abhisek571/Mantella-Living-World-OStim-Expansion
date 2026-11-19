@@ -19,6 +19,11 @@ ORAL = {'blowjob', 'cunnilingus', 'deepthroat', 'lickingvagina', 'lickingpenis',
 MANUAL = {'handjob', 'vaginalfingering', 'analfingering', 'boobjob', 'footjob', 'rubbingclitoris', 'thighjob', 'buttjob'}
 SOFT = {'kissing', 'hugging', 'hug', 'cuddling', 'gropingbreast', 'gropingbutt', 'holdinghand', 'kissingcheek', 'kissingneck'}
 RANK = {'foreplay': 0, 'manual': 1, 'oral': 1, 'sex': 2, 'finish': 3}
+# A stage's activity is the first of these whose OStim actions it has; none of them is 'idle'.
+ACTIVITY_BY_ACTIONS = (('finish', CLIMAX_ACTIONS), ('sex', PENETRATION), ('oral', ORAL), ('manual', MANUAL), ('foreplay', SOFT))
+# OStim furniture id -> family: the first word found in the id wins (so 'alchemytable' is not a plain table).
+FURNITURE_FAMILIES = (('bed', 'bed'), ('alchemy', 'alchemytable'), ('enchant', 'enchantingtable'), ('table', 'table'),
+                      ('counter', 'table'), ('wardrobe', 'wardrobe'))
 STANDARD_POSES = ['sixtynine', 'facesitting', 'spitroast', 'reversecowgirl', 'cowgirl', 'doggystyle', 'missionary', 'prone']
 POSES = ['standing face to face', 'standing from behind', 'carry', 'kneeling', 'sitting / lap', 'missionary', 'lying on back',
          'spooning', 'sixtynine', 'prone', 'doggystyle', 'cowgirl', 'reversecowgirl', 'facesitting']
@@ -41,7 +46,8 @@ INI_KEYS = ('selected_profile', 'base_directory', 'mod_directory', 'profiles_dir
 
 
 def load_json(path):
-    text = open(path, encoding='utf-8-sig', errors='replace').read()
+    with open(path, encoding='utf-8-sig', errors='replace') as f:
+        text = f.read()
     try:
         return json.loads(text)
     except ValueError:
@@ -150,7 +156,8 @@ def pick_profile(instance, wanted):
 
 
 def enabled_mods(profiles, profile):
-    lines = open(os.path.join(profiles, profile, 'modlist.txt'), encoding='utf-8-sig').read().splitlines()
+    with open(os.path.join(profiles, profile, 'modlist.txt'), encoding='utf-8-sig') as f:
+        lines = f.read().splitlines()
     return [l[1:].strip() for l in lines if l.startswith('+')]  # highest priority first
 
 
@@ -248,13 +255,7 @@ class Library:
         return {str(a.get('type', '')).lower() for a in (self.data[sid].get('actions') or [])}
 
     def activity(self, sid):
-        a = self.actions(sid)
-        if a & CLIMAX_ACTIONS: return 'finish'
-        if a & PENETRATION: return 'sex'
-        if a & ORAL: return 'oral'
-        if a & MANUAL: return 'manual'
-        if a & SOFT: return 'foreplay'
-        return 'idle'
+        return activity_of(self.actions(sid))
 
     def pose(self, sid):
         j = self.data[sid]
@@ -373,15 +374,15 @@ def sequence(stage_ids, seconds):
     return {'scenes': [{'id': sid, 'duration': seconds} for sid in stage_ids], 'tags': ['mrbflow']}
 
 
-def furniture_family(f):
+def activity_of(actions):
+    """A stage's lowercase OStim action types -> 'finish', 'sex', 'oral', 'manual', 'foreplay' or 'idle'."""
+    return next((name for name, kinds in ACTIVITY_BY_ACTIONS if actions & kinds), 'idle')
+
+
+def furniture_family(furniture_id):
     """OStim furniture type id -> the family flows match on. MRB_Flows.FurnitureFamily does the same in game."""
-    f = f.lower()
-    if 'bed' in f: return 'bed'
-    if 'alchemy' in f: return 'alchemytable'
-    if 'enchant' in f: return 'enchantingtable'
-    if 'table' in f or 'counter' in f: return 'table'
-    if 'wardrobe' in f: return 'wardrobe'
-    return f or 'none'
+    furniture_id = furniture_id.lower()
+    return next((family for word, family in FURNITURE_FAMILIES if word in furniture_id), furniture_id or 'none')
 
 
 def nice_label(name):
@@ -407,7 +408,7 @@ def short_pack(pack):
     return re.sub(r"\s+(for|For)\s+O[Ss]tim.*$", '', p).strip()
 
 
-def main():
+def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument('--auto', action='store_true', help='find MO2 from where this tool is installed, else use Vortex mode')
     ap.add_argument('--mo2', help='folder with ModOrganizer.ini, or with the mods and profiles folders')
@@ -417,51 +418,67 @@ def main():
     ap.add_argument('--zip', help='with --data: also pack the result into this zip, to install as a mod')
     ap.add_argument('--seconds', type=float, default=25.0, help='seconds per stage')
     args = ap.parse_args()
-
     if bool(args.auto) + bool(args.mo2) + bool(args.data) != 1:
         ap.error('give one of --auto, --mo2 or --data')
-    instance = None
+    return args
+
+
+def resolve_instance(args):
+    """The MO2 instance to read, or None for Vortex (then args.data, and with --auto args.zip, are filled in)."""
     if args.auto:
         instance = auto_instance()
         if not instance:
             print("No Mod Organizer 2 found: using the game's Data folder (Vortex). Deploy your mods in Vortex first.")
             args.data = 'auto'
             args.zip = args.zip or os.path.join(os.path.expanduser('~'), 'Documents', 'Mantella Living World', FLOWS_MOD + '.zip')
-    elif args.mo2:
+        return instance
+    if args.mo2:
         ini = os.path.join(args.mo2, 'ModOrganizer.ini')
-        instance = read_instance(ini) if os.path.isfile(ini) else {
-            'mods': os.path.join(args.mo2, 'mods'), 'profiles': os.path.join(args.mo2, 'profiles'), 'profile': '', 'name': args.mo2}
-    if args.data:
-        data = find_data() if args.data == 'auto' else args.data
-        if not data or not os.path.isdir(os.path.join(data, 'SKSE', 'Plugins', 'OStim', 'scenes')):
-            raise SystemExit('Could not find the game Data folder with OStim scenes. Deploy your mods in Vortex first, '
-                             'or pass the folder: --data "<Skyrim Special Edition>/Data"')
-        if not args.out:
-            args.out = tempfile.mkdtemp(prefix='mlw_flows_')
-        print(f'Reading OStim packs from {data}')
-        lib = Library(*read_scenes_data(data))
-        looked_in = data
-    else:
-        if not os.path.isdir(instance['mods']):
-            raise SystemExit(f'MO2 mods folder not found: {instance["mods"]}')
-        profile = pick_profile(instance, args.profile)
-        chosen = '' if args.profile else (' (the profile last selected in Mod Organizer 2; for another one run flowgen.py '
-                                          '--auto --profile "<name>")')
-        print(f'Mod Organizer 2: {instance["name"]}\nMods: {instance["mods"]}\nProfile: {profile}{chosen}')
-        args.out = args.out or os.path.join(instance['mods'], FLOWS_MOD)
-        out_mod = os.path.basename(os.path.normpath(args.out))
-        mods = enabled_mods(instance['profiles'], profile)
-        here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # the mod this copy is in
-        if args.auto and same_folder(os.path.dirname(here), instance['mods']) and os.path.basename(here) not in mods:
-            print(f'"{os.path.basename(here)}" is not enabled in profile "{profile}": no flows built from this copy.')
-            sys.exit(NOT_ENABLED)
-        lib = Library(*read_scenes(instance['mods'], mods, skip_mod=out_mod))
-        looked_in = f'the {len(mods)} mods enabled in profile "{profile}"'
-    moves = natural_moves(lib)
-    packs = sorted({lib.owner[s] for s in lib.mf})
+        if os.path.isfile(ini):
+            return read_instance(ini)
+        return {'mods': os.path.join(args.mo2, 'mods'), 'profiles': os.path.join(args.mo2, 'profiles'), 'profile': '', 'name': args.mo2}
+    return None
 
+
+def load_from_data(args):
+    """Vortex: every OStim scene deployed to the game's Data folder. Returns (library, where it looked)."""
+    data = find_data() if args.data == 'auto' else args.data
+    if not data or not os.path.isdir(os.path.join(data, 'SKSE', 'Plugins', 'OStim', 'scenes')):
+        raise SystemExit('Could not find the game Data folder with OStim scenes. Deploy your mods in Vortex first, '
+                         'or pass the folder: --data "<Skyrim Special Edition>/Data"')
+    if not args.out:
+        args.out = tempfile.mkdtemp(prefix='mlw_flows_')
+    print(f'Reading OStim packs from {data}')
+    return Library(*read_scenes_data(data)), data
+
+
+def load_from_mo2(args, instance):
+    """MO2: the OStim scenes of the mods enabled in the profile, minus the output mod. Returns (library, where it
+    looked); exits with NOT_ENABLED when --auto runs from a copy that is off in that profile."""
+    if not os.path.isdir(instance['mods']):
+        raise SystemExit(f'MO2 mods folder not found: {instance["mods"]}')
+    profile = pick_profile(instance, args.profile)
+    chosen = '' if args.profile else (' (the profile last selected in Mod Organizer 2; for another one run flowgen.py '
+                                      '--auto --profile "<name>")')
+    print(f'Mod Organizer 2: {instance["name"]}\nMods: {instance["mods"]}\nProfile: {profile}{chosen}')
+    args.out = args.out or os.path.join(instance['mods'], FLOWS_MOD)
+    mods = enabled_mods(instance['profiles'], profile)
+    here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # the mod this copy is in
+    if args.auto and same_folder(os.path.dirname(here), instance['mods']) and os.path.basename(here) not in mods:
+        print(f'"{os.path.basename(here)}" is not enabled in profile "{profile}": no flows built from this copy.')
+        sys.exit(NOT_ENABLED)
+    lib = Library(*read_scenes(instance['mods'], mods, skip_mod=output_mod_name(args.out)))
+    return lib, f'the {len(mods)} mods enabled in profile "{profile}"'
+
+
+def output_mod_name(out):
+    return os.path.basename(os.path.normpath(out))
+
+
+def collect_sets(lib):
+    """Every offered set, numbered in pack order. Returns (sets, pack names, first set of each pack, sets per pack)."""
     all_sets, pack_names, pack_start, pack_count = [], [], [], []
-    for pack in packs:
+    for pack in sorted({lib.owner[s] for s in lib.mf}):
         sets = [s for s in build_sets(lib, pack) if not s['excluded']]  # never offered at all
         if not sets: continue
         pack_names.append(short_pack(pack)); pack_start.append(len(all_sets)); pack_count.append(len(sets))
@@ -469,22 +486,39 @@ def main():
             s['seq'] = f'{SEQ_PREFIX}_S{len(all_sets) + 1}'
             s['packIndex'] = len(pack_names) - 1
             all_sets.append(s)
-    if not all_sets:
-        raise SystemExit(f'No usable two-person OStim scenes found in {looked_in}. Flows were not built: '
-                         'install and enable at least one OStim animation pack, then run this again.')
-    seq_dir = os.path.join(args.out, 'SKSE', 'Plugins', 'OStim', 'sequences')
-    cat_dir = os.path.join(args.out, 'SKSE', 'Plugins', 'StorageUtilData', 'MantellaAdultExpansion')
-    os.makedirs(seq_dir, exist_ok=True); os.makedirs(cat_dir, exist_ok=True)
-    for f in os.listdir(seq_dir):  # previous build
+    return all_sets, pack_names, pack_start, pack_count
+
+
+def write_json(path, value):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(value, f, indent=1)
+
+
+def write_sequences(seq_dir, all_sets, seconds):
+    """One OStim sequence file per set; the previous build's files go first."""
+    os.makedirs(seq_dir, exist_ok=True)
+    for f in os.listdir(seq_dir):
         if f.startswith(SEQ_PREFIX) and f.endswith('.json'): os.remove(os.path.join(seq_dir, f))
     for s in all_sets:
-        json.dump(sequence(s['stages'], args.seconds), open(os.path.join(seq_dir, s['seq'] + '.json'), 'w', encoding='utf-8'), indent=1)
+        write_json(os.path.join(seq_dir, s['seq'] + '.json'), sequence(s['stages'], seconds))
 
+
+def can_go_on(all_sets, k):
+    """1 when the pack has another set to move on to from set k (same furniture and theme, rank from k's up to sex):
+    openers prefer these, so a scene doesn't open on a dead end."""
+    s = all_sets[k]
+    return int(any(j != k and t['packIndex'] == s['packIndex'] and t['furniture'] == s['furniture']
+                   and t['theme'] == s['theme'] and s['rank'] <= t['rank'] < 3 for j, t in enumerate(all_sets)))
+
+
+def build_catalogue(lib, all_sets, pack_names, pack_start, pack_count, seconds):
+    """The flows.json content MAE_Flows reads through JsonUtil."""
+    moves = natural_moves(lib)
     posed = [sid for sid in lib.mf if lib.pose(sid) and lib.activity(sid) != 'idle' and not lib.excluded(sid)]
     # moveWeight[a * len(POSES) + b] = forward links from pose a to pose b across all packs
     weights = [moves.get(a, {}).get(b, 0) for a in POSES for b in POSES]
     cat = {
-        'int': {'version': 2, 'setCount': len(all_sets), 'packCount': len(pack_names), 'poseCount': len(POSES), 'stageSeconds': int(args.seconds)},
+        'int': {'version': 2, 'setCount': len(all_sets), 'packCount': len(pack_names), 'poseCount': len(POSES), 'stageSeconds': int(seconds)},
         'stringList': {
             'poses': POSES,
             'packName': pack_names,
@@ -502,11 +536,7 @@ def main():
             'setPose': [POSES.index(s['pose']) for s in all_sets],
             'setRank': [s['rank'] for s in all_sets],
             'setStageCount': [len(s['stages']) for s in all_sets],
-            # 1 when the pack has another set to move on to from this one (same furniture and theme, rank from this
-            # one's up to sex): openers prefer these, so a scene doesn't open on a dead end
-            'setCanGo': [int(any(j != k and t['packIndex'] == s['packIndex'] and t['furniture'] == s['furniture']
-                                 and t['theme'] == s['theme'] and s['rank'] <= t['rank'] < 3 for j, t in enumerate(all_sets)))
-                         for k, s in enumerate(all_sets)],
+            'setCanGo': [can_go_on(all_sets, k) for k in range(len(all_sets))],
             'moveWeight': weights,
             'scenePose': [POSES.index(lib.pose(sid)) for sid in posed],
             # every finish set, for borrowing one when the scene's own pack has none
@@ -514,29 +544,50 @@ def main():
         },
     }
     # JsonUtil lowercases every key it looks up, so the file must use lowercase keys.
-    cat = {section: {k.lower(): v for k, v in values.items()} for section, values in cat.items()}
-    json.dump(cat, open(os.path.join(cat_dir, 'flows.json'), 'w', encoding='utf-8'), indent=1)
+    return {section: {k.lower(): v for k, v in values.items()} for section, values in cat.items()}
 
-    with open(os.path.join(args.out, 'flows-report.txt'), 'w', encoding='utf-8') as r:
+
+def write_report(path, lib, all_sets, pack_names, pack_start, pack_count):
+    with open(path, 'w', encoding='utf-8') as r:
         r.write(f'{len(all_sets)} sets from {len(pack_names)} packs ({len(lib.mf)} two-person scenes)\n\n')
         for i, name in enumerate(pack_names):
             r.write(f'{name}: {pack_count[i]} sets\n')
             for s in all_sets[pack_start[i]:pack_start[i] + pack_count[i]]:
                 r.write(f'    {s["seq"]}  {s["label"]}  ({s["pose"]}, {s["act"]}, {s["furniture"]}, {theme_key(s["theme"])}, {len(s["stages"])} stages)\n')
+
+
+def pack_zip(folder, zip_path):
+    """Vortex: zips the built mod folder to install from file, then removes the folder."""
+    os.makedirs(os.path.dirname(os.path.abspath(zip_path)), exist_ok=True)
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
+        for root, _, files in os.walk(folder):
+            for f in files:
+                full = os.path.join(root, f)
+                z.write(full, os.path.relpath(full, folder))
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def main():
+    args = parse_args()
+    instance = resolve_instance(args)
+    lib, looked_in = load_from_data(args) if args.data else load_from_mo2(args, instance)
+    all_sets, pack_names, pack_start, pack_count = collect_sets(lib)
+    if not all_sets:
+        raise SystemExit(f'No usable two-person OStim scenes found in {looked_in}. Flows were not built: '
+                         'install and enable at least one OStim animation pack, then run this again.')
+    write_sequences(os.path.join(args.out, 'SKSE', 'Plugins', 'OStim', 'sequences'), all_sets, args.seconds)
+    cat_dir = os.path.join(args.out, 'SKSE', 'Plugins', 'StorageUtilData', 'MantellaAdultExpansion')
+    os.makedirs(cat_dir, exist_ok=True)
+    write_json(os.path.join(cat_dir, 'flows.json'), build_catalogue(lib, all_sets, pack_names, pack_start, pack_count, args.seconds))
+    write_report(os.path.join(args.out, 'flows-report.txt'), lib, all_sets, pack_names, pack_start, pack_count)
     print(f'Flows built: {len(all_sets)} sets from {len(pack_names)} packs -> {args.out}')
     if args.data and args.zip:
-        os.makedirs(os.path.dirname(os.path.abspath(args.zip)), exist_ok=True)
-        with zipfile.ZipFile(args.zip, 'w', zipfile.ZIP_DEFLATED) as z:
-            for root, _, files in os.walk(args.out):
-                for f in files:
-                    full = os.path.join(root, f)
-                    z.write(full, os.path.relpath(full, args.out))
-        shutil.rmtree(args.out, ignore_errors=True)
+        pack_zip(args.out, args.zip)
         print(f'Packed for Vortex: {args.zip}')
         print('Done. In Vortex: Mods, Install From File, pick that zip, then enable it and deploy. '
               'After adding or removing animation packs, run this again and reinstall the zip.')
     elif instance:
-        print(f'Done. Refresh Mod Organizer 2 and enable "{out_mod}".')
+        print(f'Done. Refresh Mod Organizer 2 and enable "{output_mod_name(args.out)}".')
 
 
 if __name__ == '__main__':

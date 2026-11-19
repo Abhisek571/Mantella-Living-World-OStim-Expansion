@@ -2,6 +2,11 @@
 
 Every change to Mantella Living World - OStim Expansion. The Nexus page lists only the main changes for each version.
 
+## Unreleased
+
+### Changed
+- Code cleanup of the flow generator and the offline test tools: long functions split into smaller steps, new tests. No change in game behaviour.
+
 ## 1.2.1 (2026-11-18)
 
 ### New
